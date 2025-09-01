@@ -1,0 +1,60 @@
+@page "/articles"
+@namespace OrderLagerSystem.Components.Pages
+@layout OrderLagerSystem.Components.Layout.MainLayout
+@using Microsoft.EntityFrameworkCore
+@using OrderLagerSystem.Data
+@inject ApplicationDbContext DbContext
+
+<PageTitle>Articles</PageTitle>
+
+<h1>Articles</h1>
+
+@if (articles == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Price</th>
+                <th>Stock</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var article in articles)
+            {
+                <tr>
+                    <td>@article.ArticleId</td>
+                    <td>@article.Name</td>
+                    <td>@article.Price</td>
+                    <td>@article.Stock</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Article>? articles;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Lägg till testdata om tabellen är tom
+        if (!await DbContext.Articles.AnyAsync())
+        {
+            DbContext.Articles.Add(new Article
+            {
+                Name = "Test Article",
+                Price = 99.99m,
+                Stock = 10
+            });
+            await DbContext.SaveChangesAsync();
+        }
+
+        articles = await DbContext.Articles.ToListAsync();
+    }
+}

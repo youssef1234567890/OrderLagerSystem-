@@ -1,8 +1,11 @@
 ﻿@page "/Account/Manage/TwoFactorAuthentication"
+@namespace OrderLagerSystem.Components.Account.Pages.Manage
+@using OrderLagerSystem.Data
+@layout OrderLagerSystem.Components.Account.Shared.ManageLayout
 
 @using Microsoft.AspNetCore.Http.Features
 @using Microsoft.AspNetCore.Identity
-@using OrderLagerSystem.Data
+
 
 @inject UserManager<ApplicationUser> UserManager
 @inject SignInManager<ApplicationUser> SignInManager

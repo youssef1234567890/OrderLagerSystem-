@@ -1,7 +1,10 @@
 ﻿@page "/Account/Manage/Disable2fa"
+@namespace OrderLagerSystem.Components.Account.Pages.Manage
+@using OrderLagerSystem.Data
+@layout OrderLagerSystem.Components.Account.Shared.ManageLayout
 
 @using Microsoft.AspNetCore.Identity
-@using OrderLagerSystem.Data
+
 
 @inject UserManager<ApplicationUser> UserManager
 @inject IdentityUserAccessor UserAccessor

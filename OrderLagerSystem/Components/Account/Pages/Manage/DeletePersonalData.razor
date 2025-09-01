@@ -1,8 +1,10 @@
 ﻿@page "/Account/Manage/DeletePersonalData"
+@namespace OrderLagerSystem.Components.Account.Pages.Manage
+@using OrderLagerSystem.Data
+@layout OrderLagerSystem.Components.Account.Shared.ManageLayout
 
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Identity
-@using OrderLagerSystem.Data
 
 @inject UserManager<ApplicationUser> UserManager
 @inject SignInManager<ApplicationUser> SignInManager

@@ -1,5 +1,7 @@
 ﻿@page "/Error"
+@namespace OrderLagerSystem.Components.Pages
 @using System.Diagnostics
+@layout OrderLagerSystem.Components.Layout.MainLayout
 
 <PageTitle>Error</PageTitle>
 
@@ -24,7 +26,7 @@
     and restarting the app.
 </p>
 
-@code{
+@code {
     [CascadingParameter]
     private HttpContext? HttpContext { get; set; }
 
