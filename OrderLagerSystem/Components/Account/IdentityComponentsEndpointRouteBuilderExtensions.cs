@@ -6,15 +6,12 @@ using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;
-using OrderLagerSystem.Components.Account.Pages;
-using OrderLagerSystem.Components.Account.Pages.Manage;
 using OrderLagerSystem.Data;
 
-namespace Microsoft.AspNetCore.Routing;
+namespace OrderLagerSystem.Components.Account;
 
 internal static class IdentityComponentsEndpointRouteBuilderExtensions
 {
-    // These endpoints are required by the Identity Razor components defined in the /Components/Account/Pages directory of this project.
     public static IEndpointConventionBuilder MapAdditionalIdentityEndpoints(this IEndpointRouteBuilder endpoints)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
@@ -29,7 +26,7 @@ internal static class IdentityComponentsEndpointRouteBuilderExtensions
         {
             IEnumerable<KeyValuePair<string, StringValues>> query = [
                 new("ReturnUrl", returnUrl),
-                new("Action", ExternalLogin.LoginCallbackAction)];
+                new("Action", "LoginCallback")];
 
             var redirectUrl = UriHelper.BuildRelative(
                 context.Request.PathBase,
@@ -62,7 +59,7 @@ internal static class IdentityComponentsEndpointRouteBuilderExtensions
             var redirectUrl = UriHelper.BuildRelative(
                 context.Request.PathBase,
                 "/Account/Manage/ExternalLogins",
-                QueryString.Create("Action", ExternalLogins.LinkLoginCallbackAction));
+                QueryString.Create("Action", "LinkLoginCallback"));
 
             var properties = signInManager.ConfigureExternalAuthenticationProperties(provider, redirectUrl, signInManager.UserManager.GetUserId(context.User));
             return TypedResults.Challenge(properties, [provider]);
