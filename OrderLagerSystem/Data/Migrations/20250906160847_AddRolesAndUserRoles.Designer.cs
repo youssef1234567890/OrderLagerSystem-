@@ -11,8 +11,8 @@ using OrderLagerSystem.Data;
 namespace OrderLagerSystem.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250901155336_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20250906160847_AddRolesAndUserRoles")]
+    partial class AddRolesAndUserRoles
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -160,6 +160,9 @@ namespace OrderLagerSystem.Migrations
                         .IsConcurrencyToken()
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Email")
                         .HasMaxLength(256)
                         .HasColumnType("TEXT");
@@ -167,7 +170,19 @@ namespace OrderLagerSystem.Migrations
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("FirstName")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("FullName")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("LastName")
+                        .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
                     b.Property<bool>("LockoutEnabled")
@@ -199,6 +214,9 @@ namespace OrderLagerSystem.Migrations
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("INTEGER");
 
+                    b.Property<DateTime?>("UpdatedUtc")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("UserName")
                         .HasMaxLength(256)
                         .HasColumnType("TEXT");
@@ -215,64 +233,138 @@ namespace OrderLagerSystem.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
-            modelBuilder.Entity("OrderLagerSystem.Data.Article", b =>
+            modelBuilder.Entity("OrderLagerSystem.Models.Article", b =>
                 {
                     b.Property<int>("ArticleId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("Description")
+                    b.Property<DateTime>("CreatedUtc")
                         .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("MinimumStock")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Name")
                         .IsRequired()
+                        .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
-                    b.Property<decimal>("Price")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("Stock")
+                    b.Property<long>("PriceInCents")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("Sku")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("StockQuantity")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("StorageLocation")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("UpdatedUtc")
+                        .HasColumnType("TEXT");
+
                     b.HasKey("ArticleId");
+
+                    b.HasIndex("Sku")
+                        .IsUnique();
 
                     b.ToTable("Articles");
                 });
 
-            modelBuilder.Entity("OrderLagerSystem.Data.Delivery", b =>
+            modelBuilder.Entity("OrderLagerSystem.Models.Delivery", b =>
                 {
                     b.Property<int>("DeliveryId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTime>("DeliveryDate")
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("DeliveredUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeliveryAddress")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeliveryMethod")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("EstimatedDeliveryUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
                         .HasColumnType("TEXT");
 
                     b.Property<int>("OrderId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<DateTime?>("ShippedUtc")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Status")
                         .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TrackingNumber")
+                        .HasMaxLength(80)
                         .HasColumnType("TEXT");
 
                     b.HasKey("DeliveryId");
 
-                    b.HasIndex("OrderId")
-                        .IsUnique();
+                    b.HasIndex("OrderId");
 
                     b.ToTable("Deliveries");
                 });
 
-            modelBuilder.Entity("OrderLagerSystem.Data.Order", b =>
+            modelBuilder.Entity("OrderLagerSystem.Models.Order", b =>
                 {
                     b.Property<int>("OrderId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTime>("OrderDate")
+                    b.Property<DateTime?>("ConfirmedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("DeliveredUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ExternalOrderNo")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ShippedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(64)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("UserId")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.HasKey("OrderId");
@@ -282,30 +374,44 @@ namespace OrderLagerSystem.Migrations
                     b.ToTable("Orders");
                 });
 
-            modelBuilder.Entity("OrderLagerSystem.Data.OrderHistory", b =>
+            modelBuilder.Entity("OrderLagerSystem.Models.OrderHistory", b =>
                 {
                     b.Property<int>("OrderHistoryId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTime>("ChangedAt")
+                    b.Property<string>("ChangedByUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ChangedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Comment")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NewStatus")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OldStatus")
+                        .HasMaxLength(64)
                         .HasColumnType("TEXT");
 
                     b.Property<int>("OrderId")
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
                     b.HasKey("OrderHistoryId");
+
+                    b.HasIndex("ChangedByUserId");
 
                     b.HasIndex("OrderId");
 
                     b.ToTable("OrderHistories");
                 });
 
-            modelBuilder.Entity("OrderLagerSystem.Data.OrderItem", b =>
+            modelBuilder.Entity("OrderLagerSystem.Models.OrderItem", b =>
                 {
                     b.Property<int>("OrderItemId")
                         .ValueGeneratedOnAdd()
@@ -320,6 +426,9 @@ namespace OrderLagerSystem.Migrations
                     b.Property<int>("Quantity")
                         .HasColumnType("INTEGER");
 
+                    b.Property<long>("UnitPriceInCents")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("OrderItemId");
 
                     b.HasIndex("ArticleId");
@@ -327,6 +436,126 @@ namespace OrderLagerSystem.Migrations
                     b.HasIndex("OrderId");
 
                     b.ToTable("OrderItems");
+                });
+
+            modelBuilder.Entity("OrderLagerSystem.Models.Role", b =>
+                {
+                    b.Property<int>("RoleId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("RoleId");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("SystemRoles");
+
+                    b.HasData(
+                        new
+                        {
+                            RoleId = 1,
+                            CreatedUtc = new DateTime(2025, 9, 6, 16, 8, 46, 385, DateTimeKind.Utc).AddTicks(7920),
+                            Description = "Systemadministratör med full åtkomst",
+                            Name = "Admin"
+                        },
+                        new
+                        {
+                            RoleId = 2,
+                            CreatedUtc = new DateTime(2025, 9, 6, 16, 8, 46, 385, DateTimeKind.Utc).AddTicks(7930),
+                            Description = "Hanterar order och leveranser",
+                            Name = "Orderkoordinator"
+                        },
+                        new
+                        {
+                            RoleId = 3,
+                            CreatedUtc = new DateTime(2025, 9, 6, 16, 8, 46, 385, DateTimeKind.Utc).AddTicks(7930),
+                            Description = "Hanterar lager och inleveranser",
+                            Name = "Employee"
+                        });
+                });
+
+            modelBuilder.Entity("OrderLagerSystem.Models.StockMovement", b =>
+                {
+                    b.Property<int>("StockMovementId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ArticleId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MovementType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("OrderId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("StockAfterMovement")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("StockMovementId");
+
+                    b.HasIndex("ArticleId");
+
+                    b.HasIndex("OrderId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("StockMovements");
+                });
+
+            modelBuilder.Entity("OrderLagerSystem.Models.UserRole", b =>
+                {
+                    b.Property<string>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("RoleId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("AssignedByUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("AssignedUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("UserId", "RoleId");
+
+                    b.HasIndex("AssignedByUserId");
+
+                    b.HasIndex("RoleId");
+
+                    b.ToTable("SystemUserRoles");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -380,30 +609,10 @@ namespace OrderLagerSystem.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("OrderLagerSystem.Data.Delivery", b =>
+            modelBuilder.Entity("OrderLagerSystem.Models.Delivery", b =>
                 {
-                    b.HasOne("OrderLagerSystem.Data.Order", "Order")
-                        .WithOne("Delivery")
-                        .HasForeignKey("OrderLagerSystem.Data.Delivery", "OrderId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Order");
-                });
-
-            modelBuilder.Entity("OrderLagerSystem.Data.Order", b =>
-                {
-                    b.HasOne("OrderLagerSystem.Data.ApplicationUser", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("OrderLagerSystem.Data.OrderHistory", b =>
-                {
-                    b.HasOne("OrderLagerSystem.Data.Order", "Order")
-                        .WithMany("OrderHistories")
+                    b.HasOne("OrderLagerSystem.Models.Order", "Order")
+                        .WithMany("Deliveries")
                         .HasForeignKey("OrderId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -411,16 +620,45 @@ namespace OrderLagerSystem.Migrations
                     b.Navigation("Order");
                 });
 
-            modelBuilder.Entity("OrderLagerSystem.Data.OrderItem", b =>
+            modelBuilder.Entity("OrderLagerSystem.Models.Order", b =>
                 {
-                    b.HasOne("OrderLagerSystem.Data.Article", "Article")
-                        .WithMany("OrderItems")
-                        .HasForeignKey("ArticleId")
+                    b.HasOne("OrderLagerSystem.Data.ApplicationUser", "User")
+                        .WithMany("Orders")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("OrderLagerSystem.Models.OrderHistory", b =>
+                {
+                    b.HasOne("OrderLagerSystem.Data.ApplicationUser", "ChangedByUser")
+                        .WithMany("OrderHistoryEntries")
+                        .HasForeignKey("ChangedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("OrderLagerSystem.Models.Order", "Order")
+                        .WithMany("History")
+                        .HasForeignKey("OrderId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("OrderLagerSystem.Data.Order", "Order")
+                    b.Navigation("ChangedByUser");
+
+                    b.Navigation("Order");
+                });
+
+            modelBuilder.Entity("OrderLagerSystem.Models.OrderItem", b =>
+                {
+                    b.HasOne("OrderLagerSystem.Models.Article", "Article")
                         .WithMany("OrderItems")
+                        .HasForeignKey("ArticleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("OrderLagerSystem.Models.Order", "Order")
+                        .WithMany("Items")
                         .HasForeignKey("OrderId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -430,18 +668,89 @@ namespace OrderLagerSystem.Migrations
                     b.Navigation("Order");
                 });
 
-            modelBuilder.Entity("OrderLagerSystem.Data.Article", b =>
+            modelBuilder.Entity("OrderLagerSystem.Models.StockMovement", b =>
                 {
-                    b.Navigation("OrderItems");
+                    b.HasOne("OrderLagerSystem.Models.Article", "Article")
+                        .WithMany("StockMovements")
+                        .HasForeignKey("ArticleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("OrderLagerSystem.Models.Order", "Order")
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("OrderLagerSystem.Data.ApplicationUser", "User")
+                        .WithMany("StockMovements")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Article");
+
+                    b.Navigation("Order");
+
+                    b.Navigation("User");
                 });
 
-            modelBuilder.Entity("OrderLagerSystem.Data.Order", b =>
+            modelBuilder.Entity("OrderLagerSystem.Models.UserRole", b =>
                 {
-                    b.Navigation("Delivery");
+                    b.HasOne("OrderLagerSystem.Data.ApplicationUser", "AssignedByUser")
+                        .WithMany("AssignedRoles")
+                        .HasForeignKey("AssignedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
-                    b.Navigation("OrderHistories");
+                    b.HasOne("OrderLagerSystem.Models.Role", "Role")
+                        .WithMany("UserRoles")
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
+                    b.HasOne("OrderLagerSystem.Data.ApplicationUser", "User")
+                        .WithMany("UserRoles")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AssignedByUser");
+
+                    b.Navigation("Role");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("OrderLagerSystem.Data.ApplicationUser", b =>
+                {
+                    b.Navigation("AssignedRoles");
+
+                    b.Navigation("OrderHistoryEntries");
+
+                    b.Navigation("Orders");
+
+                    b.Navigation("StockMovements");
+
+                    b.Navigation("UserRoles");
+                });
+
+            modelBuilder.Entity("OrderLagerSystem.Models.Article", b =>
+                {
                     b.Navigation("OrderItems");
+
+                    b.Navigation("StockMovements");
+                });
+
+            modelBuilder.Entity("OrderLagerSystem.Models.Order", b =>
+                {
+                    b.Navigation("Deliveries");
+
+                    b.Navigation("History");
+
+                    b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("OrderLagerSystem.Models.Role", b =>
+                {
+                    b.Navigation("UserRoles");
                 });
 #pragma warning restore 612, 618
         }
