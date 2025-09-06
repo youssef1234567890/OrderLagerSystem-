@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using OrderLagerSystem.Data;
 
@@ -10,9 +11,11 @@ using OrderLagerSystem.Data;
 namespace OrderLagerSystem.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250906152656_InitialCreate")]
+    partial class InitialCreate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.19");
@@ -435,55 +438,6 @@ namespace OrderLagerSystem.Migrations
                     b.ToTable("OrderItems");
                 });
 
-            modelBuilder.Entity("OrderLagerSystem.Models.Role", b =>
-                {
-                    b.Property<int>("RoleId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("CreatedUtc")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(2000)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("RoleId");
-
-                    b.HasIndex("Name")
-                        .IsUnique();
-
-                    b.ToTable("SystemRoles");
-
-                    b.HasData(
-                        new
-                        {
-                            RoleId = 1,
-                            CreatedUtc = new DateTime(2025, 9, 6, 16, 8, 46, 385, DateTimeKind.Utc).AddTicks(7920),
-                            Description = "Systemadministratör med full åtkomst",
-                            Name = "Admin"
-                        },
-                        new
-                        {
-                            RoleId = 2,
-                            CreatedUtc = new DateTime(2025, 9, 6, 16, 8, 46, 385, DateTimeKind.Utc).AddTicks(7930),
-                            Description = "Hanterar order och leveranser",
-                            Name = "Orderkoordinator"
-                        },
-                        new
-                        {
-                            RoleId = 3,
-                            CreatedUtc = new DateTime(2025, 9, 6, 16, 8, 46, 385, DateTimeKind.Utc).AddTicks(7930),
-                            Description = "Hanterar lager och inleveranser",
-                            Name = "Employee"
-                        });
-                });
-
             modelBuilder.Entity("OrderLagerSystem.Models.StockMovement", b =>
                 {
                     b.Property<int>("StockMovementId")
@@ -530,29 +484,6 @@ namespace OrderLagerSystem.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("StockMovements");
-                });
-
-            modelBuilder.Entity("OrderLagerSystem.Models.UserRole", b =>
-                {
-                    b.Property<string>("UserId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("RoleId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("AssignedByUserId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("AssignedUtc")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("UserId", "RoleId");
-
-                    b.HasIndex("AssignedByUserId");
-
-                    b.HasIndex("RoleId");
-
-                    b.ToTable("SystemUserRoles");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -690,43 +621,13 @@ namespace OrderLagerSystem.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("OrderLagerSystem.Models.UserRole", b =>
-                {
-                    b.HasOne("OrderLagerSystem.Data.ApplicationUser", "AssignedByUser")
-                        .WithMany("AssignedRoles")
-                        .HasForeignKey("AssignedByUserId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("OrderLagerSystem.Models.Role", "Role")
-                        .WithMany("UserRoles")
-                        .HasForeignKey("RoleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("OrderLagerSystem.Data.ApplicationUser", "User")
-                        .WithMany("UserRoles")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("AssignedByUser");
-
-                    b.Navigation("Role");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("OrderLagerSystem.Data.ApplicationUser", b =>
                 {
-                    b.Navigation("AssignedRoles");
-
                     b.Navigation("OrderHistoryEntries");
 
                     b.Navigation("Orders");
 
                     b.Navigation("StockMovements");
-
-                    b.Navigation("UserRoles");
                 });
 
             modelBuilder.Entity("OrderLagerSystem.Models.Article", b =>
@@ -743,11 +644,6 @@ namespace OrderLagerSystem.Migrations
                     b.Navigation("History");
 
                     b.Navigation("Items");
-                });
-
-            modelBuilder.Entity("OrderLagerSystem.Models.Role", b =>
-                {
-                    b.Navigation("UserRoles");
                 });
 #pragma warning restore 612, 618
         }
