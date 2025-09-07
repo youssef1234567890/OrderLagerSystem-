@@ -28,12 +28,29 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite(connectionString));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
  
-builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = true)
+builder.Services.AddIdentityCore<ApplicationUser>(options => 
+    {
+        options.SignIn.RequireConfirmedAccount = false; // Ändrat för utveckling
+        options.Password.RequireDigit = true;
+        options.Password.RequiredLength = 6;
+        options.Password.RequireNonAlphanumeric = false;
+        options.Password.RequireUppercase = false;
+        options.Password.RequireLowercase = false;
+    })
+    .AddRoles<IdentityRole>() // VIKTIGT: Lägg till roller
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddSignInManager()
     .AddDefaultTokenProviders();
  
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
+
+// Lägg till auktorisering med roller
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
+    options.AddPolicy("OrderCoordinatorOrAdmin", policy => policy.RequireRole("Admin", "Orderkoordinator"));
+    options.AddPolicy("EmployeeOrHigher", policy => policy.RequireRole("Admin", "Orderkoordinator", "Employee"));
+});
  
 var app = builder.Build();
  
@@ -53,6 +70,10 @@ app.UseHttpsRedirection();
  
 app.UseStaticFiles();
 app.UseAntiforgery();
+
+// Lägg till autentisering och auktorisering
+app.UseAuthentication();
+app.UseAuthorization();
  
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();

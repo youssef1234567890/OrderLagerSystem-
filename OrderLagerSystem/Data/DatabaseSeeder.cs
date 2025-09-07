@@ -22,37 +22,37 @@ namespace OrderLagerSystem.Data
                 }
             }
 
-            // 2. Seed användare
+            // 2. Seed användare med realistiska roller
             var admin = new ApplicationUser 
             { 
-                UserName = "admin@demo.se", 
-                Email = "admin@demo.se", 
+                UserName = "shalan.mourad@datorlager.se", 
+                Email = "shalan.mourad@datorlager.se", 
                 EmailConfirmed = true, 
-                FullName = "Admin User", 
-                FirstName = "Admin", 
-                LastName = "User", 
+                FullName = "Shahlan Mourad", 
+                FirstName = "Shahlan", 
+                LastName = "Mourad", 
                 IsActive = true, 
                 CreatedUtc = DateTime.UtcNow 
             };
-            var user1 = new ApplicationUser 
+            var orderCoordinator = new ApplicationUser 
             { 
-                UserName = "user1@demo.se", 
-                Email = "user1@demo.se", 
+                UserName = "Adel.Ali@datorlager.se", 
+                Email = "Adel.Ali@datorlager.se", 
                 EmailConfirmed = true, 
-                FullName = "User One", 
-                FirstName = "User", 
-                LastName = "One", 
+                FullName = "Adel Ali", 
+                FirstName = "Adel", 
+                LastName = "Ali", 
                 IsActive = true, 
                 CreatedUtc = DateTime.UtcNow 
             };
-            var user2 = new ApplicationUser 
+            var employee = new ApplicationUser 
             { 
-                UserName = "user2@demo.se", 
-                Email = "user2@demo.se", 
+                UserName = "log.don@datorlager.se", 
+                Email = "log.don@datorlager.se", 
                 EmailConfirmed = true, 
-                FullName = "User Two", 
-                FirstName = "User", 
-                LastName = "Two", 
+                FullName = "Log Don", 
+                FirstName = "Log", 
+                LastName = "Don", 
                 IsActive = true, 
                 CreatedUtc = DateTime.UtcNow 
             };
@@ -63,105 +63,269 @@ namespace OrderLagerSystem.Data
                 await userManager.AddToRoleAsync(admin, GlobalRules.Roles.Admin);
             }
 
-            if (await userManager.FindByEmailAsync(user1.Email) == null)
+            if (await userManager.FindByEmailAsync(orderCoordinator.Email) == null)
             {
-                await userManager.CreateAsync(user1, "User123!");
-                await userManager.AddToRoleAsync(user1, GlobalRules.Roles.Orderkoordinator);
+                await userManager.CreateAsync(orderCoordinator, "Order123!");
+                await userManager.AddToRoleAsync(orderCoordinator, GlobalRules.Roles.Orderkoordinator);
             }
 
-            if (await userManager.FindByEmailAsync(user2.Email) == null)
+            if (await userManager.FindByEmailAsync(employee.Email) == null)
             {
-                await userManager.CreateAsync(user2, "User123!");
-                await userManager.AddToRoleAsync(user2, GlobalRules.Roles.Employee);
+                await userManager.CreateAsync(employee, "Employee123!");
+                await userManager.AddToRoleAsync(employee, GlobalRules.Roles.Employee);
             }
 
-            // 3. Seed artiklar
+            // 3. Seed datorprodukter
             if (!context.Articles.Any())
             {
                 context.Articles.AddRange(
-                    new Article { Sku = "SKU001", Name = "Artikel 1", PriceInCents = 10000, StockQuantity = 10, Description = "Beskrivning av Artikel 1", IsActive = true, CreatedUtc = DateTime.UtcNow },
-                    new Article { Sku = "SKU002", Name = "Artikel 2", PriceInCents = 20000, StockQuantity = 5, Description = "Beskrivning av Artikel 2", IsActive = true, CreatedUtc = DateTime.UtcNow },
-                    new Article { Sku = "SKU003", Name = "Artikel 3", PriceInCents = 15000, StockQuantity = 8, Description = "Beskrivning av Artikel 3", IsActive = true, CreatedUtc = DateTime.UtcNow },
-                    new Article { Sku = "SKU004", Name = "Artikel 4", PriceInCents = 30000, StockQuantity = 2, Description = "Beskrivning av Artikel 4", IsActive = true, CreatedUtc = DateTime.UtcNow },
-                    new Article { Sku = "SKU005", Name = "Artikel 5", PriceInCents = 5000, StockQuantity = 20, Description = "Beskrivning av Artikel 5", IsActive = true, CreatedUtc = DateTime.UtcNow }
+                    new Article 
+                    { 
+                        Sku = "LAPTOP-DELL-001", 
+                        Name = "Dell XPS 13 Laptop", 
+                        PriceInCents = 1299500, // 12,995 kr
+                        StockQuantity = 15, 
+                        MinimumStock = 5,
+                        StorageLocation = "A1-B2",
+                        Description = "13-tums ultrabook med Intel Core i7, 16GB RAM, 512GB SSD. Perfekt för professionellt arbete och studentanvändning.",
+                        IsActive = true, 
+                        CreatedUtc = DateTime.UtcNow 
+                    },
+                    new Article 
+                    { 
+                        Sku = "DESKTOP-HP-002", 
+                        Name = "HP Pavilion Desktop", 
+                        PriceInCents = 849900, // 8,499 kr
+                        StockQuantity = 8, 
+                        MinimumStock = 3,
+                        StorageLocation = "B2-C1",
+                        Description = "Kraftfull desktop-dator med AMD Ryzen 5, 8GB RAM, 1TB HDD + 256GB SSD. Idealisk för hemmakontor och gaming.",
+                        IsActive = true, 
+                        CreatedUtc = DateTime.UtcNow 
+                    },
+                    new Article 
+                    { 
+                        Sku = "MONITOR-SAMSUNG-003", 
+                        Name = "Samsung 27\" 4K Monitor", 
+                        PriceInCents = 349900, // 3,499 kr
+                        StockQuantity = 25, 
+                        MinimumStock = 10,
+                        StorageLocation = "C3-D2",
+                        Description = "27-tums 4K UHD-skärm med HDR-stöd och USB-C-anslutning. Perfekt för design, video och professionell användning.",
+                        IsActive = true, 
+                        CreatedUtc = DateTime.UtcNow 
+                    },
+                    new Article 
+                    { 
+                        Sku = "KEYBOARD-LOGITECH-004", 
+                        Name = "Logitech MX Keys Tangentbord", 
+                        PriceInCents = 119900, // 1,199 kr
+                        StockQuantity = 40, 
+                        MinimumStock = 15,
+                        StorageLocation = "D1-E3",
+                        Description = "Trådlöst tangentbord med bakbelysning och smart belysning. Kompatibelt med Windows, Mac och Linux.",
+                        IsActive = true, 
+                        CreatedUtc = DateTime.UtcNow 
+                    },
+                    new Article 
+                    { 
+                        Sku = "MOUSE-RAZER-005", 
+                        Name = "Razer DeathAdder V3 Gaming Mus", 
+                        PriceInCents = 79900, // 799 kr
+                        StockQuantity = 30, 
+                        MinimumStock = 12,
+                        StorageLocation = "E2-F1",
+                        Description = "Ergonomisk gaming-mus med 30,000 DPI-sensor och RGB-belysning. Perfekt för esport och professionellt gaming.",
+                        IsActive = true, 
+                        CreatedUtc = DateTime.UtcNow 
+                    },
+                    new Article 
+                    { 
+                        Sku = "SSD-SAMSUNG-006", 
+                        Name = "Samsung 980 PRO 1TB NVMe SSD", 
+                        PriceInCents = 139900, // 1,399 kr
+                        StockQuantity = 20, 
+                        MinimumStock = 8,
+                        StorageLocation = "F3-A2",
+                        Description = "Snabb NVMe M.2 SSD med 7,000 MB/s läshastighet. Idealisk för gaming och krävande applikationer.",
+                        IsActive = true, 
+                        CreatedUtc = DateTime.UtcNow 
+                    },
+                    new Article 
+                    { 
+                        Sku = "RAM-CORSAIR-007", 
+                        Name = "Corsair Vengeance 32GB DDR4", 
+                        PriceInCents = 179900, // 1,799 kr
+                        StockQuantity = 12, 
+                        MinimumStock = 5,
+                        StorageLocation = "G1-H3",
+                        Description = "32GB DDR4-3200 RAM-kit (2x16GB) för höga prestanda. Perfekt för gaming, videobearbetning och multitasking.",
+                        IsActive = true, 
+                        CreatedUtc = DateTime.UtcNow 
+                    }
                 );
+                // Spara artiklar först innan vi använder dem i order
                 await context.SaveChangesAsync();
             }
 
-            // 4. Seed orders
+            // 4. Seed order med realistiska datorbeställningar
             if (!context.Orders.Any())
             {
-                var user1FromDb = await userManager.FindByEmailAsync(user1.Email);
-                var user2FromDb = await userManager.FindByEmailAsync(user2.Email);
+                var coordinatorFromDb = await userManager.FindByEmailAsync(orderCoordinator.Email);
+                var employeeFromDb = await userManager.FindByEmailAsync(employee.Email);
 
-                if (user1FromDb == null || user2FromDb == null)
+                if (coordinatorFromDb == null || employeeFromDb == null)
                 {
                     throw new Exception("Kunde inte hitta användare för att skapa ordrar.");
                 }
 
-                var user1Id = user1FromDb.Id;
-                var user2Id = user2FromDb.Id;
+                var coordinatorId = coordinatorFromDb.Id;
+                var employeeId = employeeFromDb.Id;
 
-                var order1 = new Order { UserId = user1Id, Status = GlobalRules.OrderStatus.Created, CreatedUtc = DateTime.UtcNow, Notes = "Första ordern" };
-                var order2 = new Order { UserId = user2Id, Status = GlobalRules.OrderStatus.Created, CreatedUtc = DateTime.UtcNow, Notes = "Andra ordern" };
+                var order1 = new Order 
+                { 
+                    UserId = coordinatorId, 
+                    Status = GlobalRules.OrderStatus.Processing, 
+                    ExternalOrderNo = "ORD-2024-001",
+                    CreatedUtc = DateTime.UtcNow.AddDays(-3), 
+                    ConfirmedUtc = DateTime.UtcNow.AddDays(-2),
+                    Notes = "Företagsbeställning för kontorsutrustning - Dell laptop och tillbehör" 
+                };
+                var order2 = new Order 
+                { 
+                    UserId = employeeId, 
+                    Status = GlobalRules.OrderStatus.Created, 
+                    ExternalOrderNo = "ORD-2024-002",
+                    CreatedUtc = DateTime.UtcNow.AddHours(-5), 
+                    Notes = "Gaming-setup beställning - Desktop, monitor och peripherals" 
+                };
 
                 context.Orders.AddRange(order1, order2);
+                // Spara order först så vi får OrderId
                 await context.SaveChangesAsync();
 
-                // 5. Seed orderitems
+                // 5-8. Seed relaterad orderdata i en transaktion
                 var articles = context.Articles.ToList();
+                
+                // OrderItems
                 context.OrderItems.AddRange(
-                    new OrderItem { OrderId = order1.OrderId, ArticleId = articles[0].ArticleId, Quantity = 2, UnitPriceInCents = articles[0].PriceInCents },
-                    new OrderItem { OrderId = order1.OrderId, ArticleId = articles[1].ArticleId, Quantity = 1, UnitPriceInCents = articles[1].PriceInCents },
-                    new OrderItem { OrderId = order2.OrderId, ArticleId = articles[2].ArticleId, Quantity = 3, UnitPriceInCents = articles[2].PriceInCents }
+                    // Order 1: Företagsbeställning (Dell laptop + tillbehör)
+                    new OrderItem { OrderId = order1.OrderId, ArticleId = articles[0].ArticleId, Quantity = 3, UnitPriceInCents = articles[0].PriceInCents }, // Dell XPS 13
+                    new OrderItem { OrderId = order1.OrderId, ArticleId = articles[3].ArticleId, Quantity = 3, UnitPriceInCents = articles[3].PriceInCents }, // Logitech tangentbord
+                    new OrderItem { OrderId = order1.OrderId, ArticleId = articles[4].ArticleId, Quantity = 3, UnitPriceInCents = articles[4].PriceInCents }, // Razer mus
+                    
+                    // Order 2: Gaming-setup
+                    new OrderItem { OrderId = order2.OrderId, ArticleId = articles[1].ArticleId, Quantity = 1, UnitPriceInCents = articles[1].PriceInCents }, // HP Desktop
+                    new OrderItem { OrderId = order2.OrderId, ArticleId = articles[2].ArticleId, Quantity = 1, UnitPriceInCents = articles[2].PriceInCents }, // Samsung Monitor
+                    new OrderItem { OrderId = order2.OrderId, ArticleId = articles[5].ArticleId, Quantity = 1, UnitPriceInCents = articles[5].PriceInCents }, // Samsung SSD
+                    new OrderItem { OrderId = order2.OrderId, ArticleId = articles[6].ArticleId, Quantity = 1, UnitPriceInCents = articles[6].PriceInCents }  // Corsair RAM
                 );
-                await context.SaveChangesAsync();
 
-                // 6. Seed delivery
-                context.Deliveries.Add(new Delivery 
-                { 
-                    OrderId = order1.OrderId, 
-                    Status = GlobalRules.DeliveryStatus.Pending, 
-                    EstimatedDeliveryUtc = DateTime.UtcNow.AddDays(2), 
-                    DeliveryMethod = "Hemleverans", 
-                    CreatedUtc = DateTime.UtcNow 
-                });
-                await context.SaveChangesAsync();
+                // Deliveries
+                context.Deliveries.AddRange(
+                    new Delivery 
+                    { 
+                        OrderId = order1.OrderId, 
+                        Status = GlobalRules.DeliveryStatus.Shipped,
+                        TrackingNumber = "DHL-SE-2024-001234",
+                        EstimatedDeliveryUtc = DateTime.UtcNow.AddDays(1), 
+                        DeliveryMethod = "Företagsleverans",
+                        DeliveryAddress = "TechnoAB, Storgatan 15, 111 20 Stockholm",
+                        Notes = "Leverans till reception, kontakta Erik Johansson vid ankomst",
+                        CreatedUtc = DateTime.UtcNow.AddDays(-2),
+                        ShippedUtc = DateTime.UtcNow.AddDays(-1)
+                    },
+                    new Delivery 
+                    { 
+                        OrderId = order2.OrderId, 
+                        Status = GlobalRules.DeliveryStatus.Preparing,
+                        EstimatedDeliveryUtc = DateTime.UtcNow.AddDays(3), 
+                        DeliveryMethod = "Hemleverans",
+                        DeliveryAddress = "Maria Andersson, Hemgatan 42, 123 45 Göteborg",
+                        Notes = "Ring innan leverans",
+                        CreatedUtc = DateTime.UtcNow.AddHours(-3)
+                    }
+                );
 
-                // 7. Seed stock movements
+                // Stock Movements
                 context.StockMovements.AddRange(
+                    // Initial stock för Dell laptops
                     new StockMovement 
                     { 
                         ArticleId = articles[0].ArticleId, 
-                        UserId = user1Id, 
+                        UserId = employeeId, 
                         MovementType = StockMovement.MovementTypes.Initial, 
-                        Quantity = 10, 
-                        StockAfterMovement = 10, 
-                        Reason = "Initial stock setup", 
-                        CreatedUtc = DateTime.UtcNow 
+                        Quantity = 20, 
+                        StockAfterMovement = 20, 
+                        Reason = "Första leverans från Dell", 
+                        Notes = "Leverans av 20 Dell XPS 13 laptops från leverantör",
+                        CreatedUtc = DateTime.UtcNow.AddDays(-10) 
                     },
+                    // Inleverans av mer lager
                     new StockMovement 
                     { 
                         ArticleId = articles[1].ArticleId, 
-                        UserId = user1Id, 
-                        MovementType = StockMovement.MovementTypes.Initial, 
-                        Quantity = 5, 
-                        StockAfterMovement = 5, 
-                        Reason = "Initial stock setup", 
-                        CreatedUtc = DateTime.UtcNow 
+                        UserId = employeeId, 
+                        MovementType = StockMovement.MovementTypes.Incoming, 
+                        Quantity = 10, 
+                        StockAfterMovement = 18, 
+                        Reason = "Återfyllnad från HP", 
+                        Notes = "Ny leverans av HP Pavilion desktop-datorer",
+                        CreatedUtc = DateTime.UtcNow.AddDays(-5) 
+                    },
+                    // Reserverat för order
+                    new StockMovement 
+                    { 
+                        ArticleId = articles[0].ArticleId, 
+                        UserId = coordinatorId, 
+                        MovementType = StockMovement.MovementTypes.Reserved, 
+                        Quantity = -3, 
+                        StockAfterMovement = 17, 
+                        OrderId = order1.OrderId,
+                        Reason = "Reserverat för företagsorder ORD-2024-001", 
+                        CreatedUtc = DateTime.UtcNow.AddDays(-2) 
                     }
                 );
-                await context.SaveChangesAsync();
 
-                // 8. Seed order history
-                context.OrderHistories.Add(new OrderHistory 
-                { 
-                    OrderId = order1.OrderId, 
-                    ChangedByUserId = user1Id, 
-                    NewStatus = GlobalRules.OrderStatus.Created, 
-                    Comment = "Order skapad", 
-                    ChangedUtc = DateTime.UtcNow 
-                });
+                // Order History
+                context.OrderHistories.AddRange(
+                    new OrderHistory 
+                    { 
+                        OrderId = order1.OrderId, 
+                        ChangedByUserId = coordinatorId, 
+                        NewStatus = GlobalRules.OrderStatus.Created, 
+                        Comment = "Företagsbeställning mottagen från TechnoAB", 
+                        ChangedUtc = DateTime.UtcNow.AddDays(-3) 
+                    },
+                    new OrderHistory 
+                    { 
+                        OrderId = order1.OrderId, 
+                        ChangedByUserId = coordinatorId, 
+                        OldStatus = GlobalRules.OrderStatus.Created,
+                        NewStatus = GlobalRules.OrderStatus.Confirmed, 
+                        Comment = "Order bekräftad, alla artiklar i lager", 
+                        ChangedUtc = DateTime.UtcNow.AddDays(-2) 
+                    },
+                    new OrderHistory 
+                    { 
+                        OrderId = order1.OrderId, 
+                        ChangedByUserId = employeeId, 
+                        OldStatus = GlobalRules.OrderStatus.Confirmed,
+                        NewStatus = GlobalRules.OrderStatus.Processing, 
+                        Comment = "Plockning påbörjad i lager", 
+                        ChangedUtc = DateTime.UtcNow.AddDays(-1) 
+                    },
+                    new OrderHistory 
+                    { 
+                        OrderId = order2.OrderId, 
+                        ChangedByUserId = employeeId, 
+                        NewStatus = GlobalRules.OrderStatus.Created, 
+                        Comment = "Gaming-setup beställning registrerad", 
+                        ChangedUtc = DateTime.UtcNow.AddHours(-5) 
+                    }
+                );
+
+                // Spara all orderrelaterad data i en transaktion
                 await context.SaveChangesAsync();
             }
         }
