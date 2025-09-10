@@ -68,6 +68,11 @@ Thumbs.db
 *.sqlite3
 app.db
 
+# Log files
+*.log
+logs/
+Logs/
+
 # User-specific files
 *.user
 *.suo
