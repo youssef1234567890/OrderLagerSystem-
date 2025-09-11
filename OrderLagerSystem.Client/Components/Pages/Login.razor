@@ -1,0 +1,194 @@
+@page "/login"
+@layout MainLayout
+@using System.ComponentModel.DataAnnotations
+@using System.Text.Json
+@using OrderLagerSystem.Client.Services
+@using OrderLagerSystem.Api.DTOs
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
+@inject OrderLagerSystem.Client.Services.AuthService AuthService
+@rendermode InteractiveServer 
+
+<PageTitle>Login - OrderLagerSystem</PageTitle>
+
+<div class="container-fluid d-flex align-items-center justify-content-center min-vh-100">
+    <div class="row w-100">
+        <div class="col-md-6 col-lg-4 mx-auto">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white text-center">
+                    <h3 class="mb-0">
+                        OrderLagerSystem
+                    </h3>
+                    <small>Login to continue</small>
+                </div>
+                <div class="card-body p-4">
+                    <EditForm Model="@loginModel" OnValidSubmit="@HandleLogin" FormName="loginForm">
+                        <DataAnnotationsValidator />
+                        
+                        @if (!string.IsNullOrEmpty(errorMessage))
+                        {
+                            <div class="alert alert-danger" role="alert">
+                                @errorMessage
+                            </div>
+                        }
+                        
+                        @if (!string.IsNullOrEmpty(successMessage))
+                        {
+                            <div class="alert alert-success" role="alert">
+                                @successMessage
+                                <div class="mt-2">
+                                    <a href="/profile" class="btn btn-sm btn-outline-success">
+                                        Go to my profile
+                                    </a>
+                                    <a href="/" class="btn btn-sm btn-outline-primary ms-2">
+                                        Home
+                                    </a>
+                                </div>
+                            </div>
+                        }
+                        
+                        <div class="mb-3">
+                            <label for="usernameOrEmail" class="form-label">
+                                Username or Email
+                            </label>
+                            <InputText id="usernameOrEmail" 
+                                     class="form-control" 
+                                     @bind-Value="loginModel.UsernameOrEmail" 
+                                     placeholder="din.email@datorlager.se" 
+                                     disabled="@isLoading" />
+                            <ValidationMessage For="@(() => loginModel.UsernameOrEmail)" class="text-danger small" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="password" class="form-label">
+                                Password
+                            </label>
+                            <InputText id="password" 
+                                     type="password" 
+                                     class="form-control" 
+                                     @bind-Value="loginModel.Password" 
+                                     disabled="@isLoading" />
+                            <ValidationMessage For="@(() => loginModel.Password)" class="text-danger small" />
+                        </div>
+
+                        <div class="mb-3 form-check">
+                            <InputCheckbox id="remember" 
+                                         class="form-check-input" 
+                                         @bind-Value="loginModel.RememberMe" 
+                                         disabled="@isLoading" />
+                            <label for="remember" class="form-check-label">
+                                Remember me
+                            </label>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100" disabled="@isLoading">
+                            @if (isLoading)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                <span>Logging in...</span>
+                            }
+                            else
+                            {
+                                <span>Login</span>
+                            }
+                        </button>
+                    </EditForm>
+                </div>
+                <div class="card-footer text-center text-muted">
+                    <small>
+                        Secure login with JWT
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private LoginRequest loginModel { get; set; } = new();
+    
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+    private bool isLoading = false;
+
+    /// <summary>
+    /// Checks if the user is already logged in on page load
+    /// </summary>
+    protected override void OnInitialized()
+    {
+        if (AuthService.IsAuthenticated)
+        {
+            Console.WriteLine("User is already logged in, redirecting...");
+            Navigation.NavigateTo("/");
+        }
+    }
+
+    /// <summary>
+    /// Handles the login form and authenticates the user against the API
+    /// </summary>
+    private async Task HandleLogin()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+
+        try
+        {
+            Console.WriteLine($"Attempting to log in with: {loginModel.UsernameOrEmail}");
+            Console.WriteLine($"API BaseAddress: {Http.BaseAddress}");
+            
+            // Send login request to API
+            var response = await Http.PostAsJsonAsync("/api/auth/login", loginModel);
+            Console.WriteLine($"Response status: {response.StatusCode}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                var loginResponse = await response.Content.ReadFromJsonAsync<LoginResponse>();
+                
+                if (loginResponse != null && loginResponse.Success && !string.IsNullOrEmpty(loginResponse.Token))
+                {
+                    Console.WriteLine("Login successful! Token received");
+                    
+                    successMessage = $"Login successful! Welcome {loginResponse.User?.FullName}!";
+                    
+                    // Save login in AuthService (works better than localStorage in Blazor Server)
+                    AuthService.Login(loginResponse.Token, loginResponse.User!);
+                    
+                    // Update UI and wait briefly to show the message
+                    StateHasChanged();
+                    await Task.Delay(800);
+                    
+                    Console.WriteLine("Navigating to home page...");
+                    Navigation.NavigateTo("/");
+                }
+                else
+                {
+                    errorMessage = loginResponse?.Message ?? "Login failed.";
+                }
+            }
+            else
+            {
+                try
+                {
+                    var errorResponse = await response.Content.ReadFromJsonAsync<LoginResponse>();
+                    errorMessage = errorResponse?.Message ?? "Login failed. Check your credentials.";
+                }
+                catch
+                {
+                    errorMessage = "Login failed. Check your credentials.";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred: {ex.Message}";
+            Console.WriteLine($"Login error: {ex}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}
