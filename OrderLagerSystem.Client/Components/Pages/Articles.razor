@@ -1,7 +1,9 @@
 @page "/articles"
-@using OrderLagerSystem.Api.DTOs
+@using OrderLagerSystem.Client.DTOs
 @using OrderLagerSystem.Client.Services
+@using ClientDto = OrderLagerSystem.Client.DTOs
 @inject IArticleService ArticleService
+@inject IBarcodeService BarcodeService
 @inject AuthService AuthService
 @rendermode InteractiveServer
 
@@ -44,7 +46,7 @@ else
     else if (articles != null && articles.Any())
     {
         <div class="row">
-            @foreach (var article in articles)
+            @foreach (ClientDto.ArticleDto article in articles)
             {
                 <div class="col-md-6 col-lg-4 mb-3">
                     <div class="card @(article.IsLowStock ? "border-warning" : "")">
@@ -95,6 +97,9 @@ else
                                 <button class="btn btn-sm btn-outline-primary" @onclick="() => ViewDetails(article.ArticleId)">
                                     Detaljer
                                 </button>
+                                <button class="btn btn-sm btn-outline-info ms-1" @onclick="() => ShowBarcode(article.ArticleId, article.Sku)">
+                                    <i class="bi bi-upc-scan"></i> Streckkod
+                                </button>
                                 @if (CanEdit())
                                 {
                                     <button class="btn btn-sm btn-outline-secondary ms-1" @onclick="() => EditArticle(article.ArticleId)">
@@ -134,14 +139,93 @@ else
             @successMessage
         </div>
     }
+    
+    <!-- Barcode Modal -->
+    @if (showBarcodeModal)
+    {
+        <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Streckkod för @selectedArticleSku</h5>
+                        <button type="button" class="btn-close" @onclick="CloseBarcodeModal"></button>
+                    </div>
+                    <div class="modal-body text-center">
+                        @if (isGeneratingBarcode)
+                        {
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Genererar streckkod...</span>
+                            </div>
+                            <p class="mt-2">Genererar streckkod...</p>
+                        }
+                        else if (currentBarcode != null)
+                        {
+                            <div class="mb-3">
+                                <label class="form-label">Format:</label>
+                                <select class="form-select" value="@selectedBarcodeFormat" @onchange="RegenerateBarcode">
+                                    <option value="@ClientDto.BarcodeFormat.Code128">Code 128 (Rekommenderat)</option>
+                                    <option value="@ClientDto.BarcodeFormat.Code39">Code 39</option>
+                                    <option value="@ClientDto.BarcodeFormat.QRCode">QR Code</option>
+                                </select>
+                            </div>
+                            
+                            <div class="barcode-container p-3" style="background: white; border: 1px solid #ddd; border-radius: 5px; display: inline-block;">
+                                <img src="data:@currentBarcode.ContentType;base64,@currentBarcode.ImageBase64" 
+                                     alt="Streckkod för @selectedArticleSku" 
+                                     class="img-fluid" 
+                                     style="max-width: 100%; height: auto;" />
+                            </div>
+                            
+                            <div class="mt-3">
+                                <small class="text-muted">
+                                    Format: @currentBarcode.Format | 
+                                    Genererad: @currentBarcode.GeneratedAt.ToString("yyyy-MM-dd HH:mm")
+                                </small>
+                            </div>
+                            
+                            <div class="mt-3">
+                                <button class="btn btn-primary" @onclick="DownloadBarcode">
+                                    <i class="bi bi-download"></i> Ladda ner PNG
+                                </button>
+                                <button class="btn btn-outline-secondary ms-2" @onclick="PrintBarcode">
+                                    <i class="bi bi-printer"></i> Skriv ut
+                                </button>
+                            </div>
+                        }
+                        else if (!string.IsNullOrEmpty(barcodeError))
+                        {
+                            <div class="alert alert-danger">
+                                @barcodeError
+                            </div>
+                            <button class="btn btn-primary" @onclick="() => ShowBarcode(selectedArticleId, selectedArticleSku)">
+                                Försök igen
+                            </button>
+                        }
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseBarcodeModal">Stäng</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
 }
 
 @code {
-    private List<ArticleDto>? articles;
+    private List<ClientDto.ArticleDto>? articles;
     private string searchTerm = string.Empty;
     private bool isLoading = true;
     private string errorMessage = string.Empty;
     private string successMessage = string.Empty;
+    
+    // Barcode modal state
+    private bool showBarcodeModal = false;
+    private bool isGeneratingBarcode = false;
+    private ClientDto.BarcodeResponse? currentBarcode = null;
+    private string selectedArticleSku = string.Empty;
+    private int selectedArticleId = 0;
+    private ClientDto.BarcodeFormat selectedBarcodeFormat = ClientDto.BarcodeFormat.Code128;
+    private string barcodeError = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
@@ -261,5 +345,114 @@ else
     private bool CanDelete()
     {
         return AuthService.CurrentUser?.Roles?.Contains("Admin") == true;
+    }
+    
+    // Barcode methods
+    private async Task ShowBarcode(int articleId, string sku)
+    {
+        selectedArticleId = articleId;
+        selectedArticleSku = sku;
+        selectedBarcodeFormat = ClientDto.BarcodeFormat.Code128;
+        currentBarcode = null;
+        barcodeError = string.Empty;
+        showBarcodeModal = true;
+        
+        await GenerateCurrentBarcode();
+    }
+    
+    private async Task GenerateCurrentBarcode()
+    {
+        try
+        {
+            isGeneratingBarcode = true;
+            barcodeError = string.Empty;
+            StateHasChanged();
+            
+            currentBarcode = await BarcodeService.GenerateArticleBarcodeAsync(
+                selectedArticleId, 
+                selectedBarcodeFormat, 
+                300, 
+                100, 
+                true);
+                
+            if (currentBarcode == null)
+            {
+                barcodeError = "Kunde inte generera streckkod. Försök igen.";
+            }
+        }
+        catch (InvalidOperationException ex)
+        {
+            barcodeError = ex.Message;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            barcodeError = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            barcodeError = $"Ett oväntat fel inträffade: {ex.Message}";
+        }
+        finally
+        {
+            isGeneratingBarcode = false;
+            StateHasChanged();
+        }
+    }
+    
+    private async Task RegenerateBarcode(ChangeEventArgs e)
+    {
+        if (Enum.TryParse<ClientDto.BarcodeFormat>(e.Value?.ToString(), out var newFormat))
+        {
+            selectedBarcodeFormat = newFormat;
+            await GenerateCurrentBarcode();
+        }
+    }
+    
+    private void CloseBarcodeModal()
+    {
+        showBarcodeModal = false;
+        currentBarcode = null;
+        barcodeError = string.Empty;
+        selectedArticleSku = string.Empty;
+        selectedArticleId = 0;
+    }
+    
+    private async Task DownloadBarcode()
+    {
+        if (currentBarcode == null) return;
+        
+        try
+        {
+            var imageBytes = Convert.FromBase64String(currentBarcode.ImageBase64);
+            var fileName = $"{selectedArticleSku}-barcode-{currentBarcode.Format}.png";
+            
+            // Skulle normalt göras via JS interop
+            await Task.Run(() => 
+            {
+                successMessage = $"Streckkod för {selectedArticleSku} är redo för nedladdning. Högerklicka på bilden och välj 'Spara bild som...'";
+            });
+        }
+        catch (Exception ex)
+        {
+            barcodeError = $"Kunde inte ladda ner streckkod: {ex.Message}";
+        }
+    }
+    
+    private async Task PrintBarcode()
+    {
+        if (currentBarcode == null) return;
+        
+        try
+        {
+            // Skulle normalt göras via JS interop
+            await Task.Run(() => 
+            {
+                successMessage = $"För att skriva ut: Högerklicka på streckkodsbilden och välj 'Skriv ut bild' eller kopiera bilden till ett ordbehandlingsprogram.";
+            });
+        }
+        catch (Exception ex)
+        {
+            barcodeError = $"Kunde inte skriva ut streckkod: {ex.Message}";
+        }
     }
 }

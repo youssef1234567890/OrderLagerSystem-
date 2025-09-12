@@ -1,4 +1,4 @@
-using OrderLagerSystem.Api.DTOs;
+using OrderLagerSystem.Client.DTOs;
 using System.Net.Http.Json;
 using System.Text.Json;
 
