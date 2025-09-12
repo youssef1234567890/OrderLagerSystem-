@@ -34,17 +34,4 @@ public interface IStockMovementService
     /// <returns>Article information if found</returns>
     Task<ArticleInfo?> GetArticleInfoAsync(string identifier);
 
-    /// <summary>
-    /// Get all orders pending for goods issue (utleverans)
-    /// </summary>
-    /// <returns>List of orders waiting for picking/shipping</returns>
-    Task<List<OrderForGoodsIssue>> GetOrdersPendingGoodsIssueAsync();
-
-    /// <summary>
-    /// Process goods issue for an order (utleverans)
-    /// </summary>
-    /// <param name="orderId">Order ID to process</param>
-    /// <param name="request">Goods issue details</param>
-    /// <returns>Goods issue confirmation</returns>
-    Task<GoodsIssueResponse> ProcessGoodsIssueAsync(int orderId, GoodsIssueRequest request);
 }
