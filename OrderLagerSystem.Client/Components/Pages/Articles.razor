@@ -1,0 +1,265 @@
+@page "/articles"
+@using OrderLagerSystem.Api.DTOs
+@using OrderLagerSystem.Client.Services
+@inject IArticleService ArticleService
+@inject AuthService AuthService
+@rendermode InteractiveServer
+
+<PageTitle>Artiklar</PageTitle>
+
+<h3>Artikelhantering</h3>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="alert alert-warning">
+        <p>Du måste vara inloggad för att se artiklar.</p>
+    </div>
+}
+else
+{
+    <div class="row mb-3">
+        <div class="col-md-8">
+            <input type="text" class="form-control" placeholder="Sök artiklar..."
+                   @bind="searchTerm" @onkeyup="SearchArticles" />
+        </div>
+        <div class="col-md-4">
+            @if (AuthService.CurrentUser?.Roles?.Contains("Admin") == true || 
+                 AuthService.CurrentUser?.Roles?.Contains("Orderkoordinator") == true)
+            {
+                <button class="btn btn-primary" @onclick="ShowCreateForm">
+                    <i class="bi bi-plus"></i> Ny artikel
+                </button>
+            }
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="d-flex justify-content-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Laddar...</span>
+            </div>
+        </div>
+    }
+    else if (articles != null && articles.Any())
+    {
+        <div class="row">
+            @foreach (var article in articles)
+            {
+                <div class="col-md-6 col-lg-4 mb-3">
+                    <div class="card @(article.IsLowStock ? "border-warning" : "")">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <h5 class="card-title">@article.Name</h5>
+                                @if (!article.IsActive)
+                                {
+                                    <span class="badge bg-secondary">Inaktiv</span>
+                                }
+                                else if (article.IsLowStock)
+                                {
+                                    <span class="badge bg-warning">Lågt lager</span>
+                                }
+                            </div>
+                            
+                            <p class="card-text">
+                                <small class="text-muted">SKU: @article.Sku</small><br/>
+                                @if (!string.IsNullOrEmpty(article.Description))
+                                {
+                                    <span>@article.Description</span>
+                                }
+                            </p>
+                            
+                            <div class="row text-center">
+                                <div class="col">
+                                    <strong>@article.Price.ToString("C")</strong><br/>
+                                    <small class="text-muted">Pris</small>
+                                </div>
+                                <div class="col">
+                                    <strong>@article.StockQuantity</strong><br/>
+                                    <small class="text-muted">I lager</small>
+                                </div>
+                                <div class="col">
+                                    <strong>@article.MinimumStock</strong><br/>
+                                    <small class="text-muted">Min. lager</small>
+                                </div>
+                            </div>
+                            
+                            @if (!string.IsNullOrEmpty(article.StorageLocation))
+                            {
+                                <div class="mt-2">
+                                    <small><i class="bi bi-geo-alt"></i> @article.StorageLocation</small>
+                                </div>
+                            }
+                            
+                            <div class="mt-3">
+                                <button class="btn btn-sm btn-outline-primary" @onclick="() => ViewDetails(article.ArticleId)">
+                                    Detaljer
+                                </button>
+                                @if (CanEdit())
+                                {
+                                    <button class="btn btn-sm btn-outline-secondary ms-1" @onclick="() => EditArticle(article.ArticleId)">
+                                        Redigera
+                                    </button>
+                                }
+                                @if (CanDelete())
+                                {
+                                    <button class="btn btn-sm btn-outline-danger ms-1" @onclick="() => DeleteArticle(article.ArticleId, article.Name)">
+                                        Ta bort
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else if (!isLoading)
+    {
+        <div class="alert alert-info">
+            <p>Inga artiklar hittades.</p>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger mt-3">
+            @errorMessage
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="alert alert-success mt-3">
+            @successMessage
+        </div>
+    }
+}
+
+@code {
+    private List<ArticleDto>? articles;
+    private string searchTerm = string.Empty;
+    private bool isLoading = true;
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadArticles();
+    }
+
+    private async Task LoadArticles()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = string.Empty;
+            
+            // Admin kan se inaktiva artiklar
+            bool includeInactive = AuthService.CurrentUser?.Roles?.Contains("Admin") == true;
+            articles = await ArticleService.GetArticlesAsync(includeInactive);
+            
+            if (articles == null)
+            {
+                errorMessage = "Kunde inte ladda artiklar. Försök igen senare.";
+            }
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Ett fel inträffade: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task SearchArticles()
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm))
+        {
+            await LoadArticles();
+            return;
+        }
+
+        try
+        {
+            isLoading = true;
+            errorMessage = string.Empty;
+            
+            articles = await ArticleService.SearchArticlesAsync(searchTerm);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Sökfel: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ShowCreateForm()
+    {
+        // TODO: Navigate to create form or show modal
+        successMessage = "Skapa artikel-funktionalitet kommer snart...";
+    }
+
+    private void ViewDetails(int articleId)
+    {
+        // TODO: Navigate to details page
+        successMessage = $"Visa detaljer för artikel {articleId} kommer snart...";
+    }
+
+    private void EditArticle(int articleId)
+    {
+        // TODO: Navigate to edit form
+        successMessage = $"Redigera artikel {articleId} kommer snart...";
+    }
+
+    private async Task DeleteArticle(int articleId, string articleName)
+    {
+        if (!CanDelete()) return;
+
+        // Simple confirmation - in real app, use modal
+        var confirmed = await Task.FromResult(true); // TODO: Add proper confirmation dialog
+        
+        if (!confirmed) return;
+
+        try
+        {
+            var success = await ArticleService.DeleteArticleAsync(articleId);
+            if (success)
+            {
+                successMessage = $"Artikel '{articleName}' har tagits bort.";
+                await LoadArticles(); // Reload list
+            }
+            else
+            {
+                errorMessage = "Kunde inte ta bort artikeln.";
+            }
+        }
+        catch (InvalidOperationException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
+    private bool CanEdit()
+    {
+        return AuthService.CurrentUser?.Roles?.Any(r => r == "Admin" || r == "Orderkoordinator") == true;
+    }
+
+    private bool CanDelete()
+    {
+        return AuthService.CurrentUser?.Roles?.Contains("Admin") == true;
+    }
+}
