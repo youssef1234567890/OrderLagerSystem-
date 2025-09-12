@@ -322,4 +322,51 @@ public class BarcodeController : ControllerBase
 
         return Ok(new { formats = formats, defaultFormat = ApiBarcodeFormat.Code128 });
     }
+
+    /// <summary>
+    /// Validerar text för streckkodsformat med detaljerad information
+    /// </summary>
+    /// <param name="request">Request med text och format att validera</param>
+    /// <returns>Valideringsresultat med rekommendationer</returns>
+    [HttpPost("validate-simple")]
+    public ActionResult<object> ValidateTextSimple([FromBody] object request)
+    {
+        try
+        {
+            // Parsea JSON request
+            if (request is not System.Text.Json.JsonElement jsonElement)
+                return BadRequest("Ogiltigt request format");
+
+            if (!jsonElement.TryGetProperty("text", out var textElement) ||
+                !jsonElement.TryGetProperty("format", out var formatElement))
+                return BadRequest("Text och format krävs");
+
+            var text = textElement.GetString();
+            if (!Enum.TryParse<ApiBarcodeFormat>(formatElement.GetString(), true, out var format))
+                return BadRequest("Ogiltigt format");
+
+            // Använd den nya valideringsmetoden
+            var validationResult = _barcodeService.ValidateForFormat(text!, format);
+            var recommended = _barcodeService.GetRecommendedFormat(text!);
+            var normalized = _barcodeService.NormalizeTextForBarcode(text!, format);
+
+            return Ok(new
+            {
+                text = text,
+                normalizedText = normalized != text ? normalized : null,
+                format = format.ToString(),
+                isValid = validationResult.IsValid,
+                message = validationResult.Message,
+                recommendedFormat = recommended.ToString(),
+                recommendation = recommended != format 
+                    ? $"Rekommenderar {recommended} för bättre kompatibilitet"
+                    : "Valt format är optimalt"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error validating barcode text");
+            return StatusCode(500, "Ett fel inträffade vid validering");
+        }
+    }
 }

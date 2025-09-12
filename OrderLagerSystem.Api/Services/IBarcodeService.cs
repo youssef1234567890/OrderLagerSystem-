@@ -37,4 +37,20 @@ public interface IBarcodeService
     /// <param name="text">Text att analysera</param>
     /// <returns>Rekommenderat streckkodsformat</returns>
     ApiBarcodeFormat GetRecommendedFormat(string text);
+
+    /// <summary>
+    /// Validerar text för specifikt format med detaljerat resultat
+    /// </summary>
+    /// <param name="text">Text att validera</param>
+    /// <param name="format">Format att validera mot</param>
+    /// <returns>Valideringsresultat med meddelande</returns>
+    ValidationResult ValidateForFormat(string text, ApiBarcodeFormat format);
+
+    /// <summary>
+    /// Normaliserar text för optimal kompatibilitet med givet format
+    /// </summary>
+    /// <param name="text">Original text</param>
+    /// <param name="format">Målformat</param>
+    /// <returns>Normaliserad text</returns>
+    string NormalizeTextForBarcode(string text, ApiBarcodeFormat format);
 }
