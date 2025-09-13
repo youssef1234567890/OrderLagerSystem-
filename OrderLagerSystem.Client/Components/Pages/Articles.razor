@@ -6,6 +6,8 @@
 @inject IBarcodeService BarcodeService
 @inject AuthService AuthService
 @rendermode InteractiveServer
+@inject NavigationManager NavManager
+@inject NavigationManager Navigation
 
 <PageTitle>Artiklar</PageTitle>
 
@@ -287,11 +289,10 @@ else
         }
     }
 
-    private void ShowCreateForm()
-    {
-        // TODO: Navigate to create form or show modal
-        successMessage = "Skapa artikel-funktionalitet kommer snart...";
-    }
+private void ShowCreateForm()
+{
+    Navigation.NavigateTo("/create");
+}
 
     private void ViewDetails(int articleId)
     {
@@ -299,11 +300,12 @@ else
         successMessage = $"Visa detaljer för artikel {articleId} kommer snart...";
     }
 
-    private void EditArticle(int articleId)
-    {
-        // TODO: Navigate to edit form
-        successMessage = $"Redigera artikel {articleId} kommer snart...";
-    }
+private void EditArticle(int articleId)
+{
+    Navigation.NavigateTo($"/edit/{articleId}");
+}
+
+
 
     private async Task DeleteArticle(int articleId, string articleName)
     {
