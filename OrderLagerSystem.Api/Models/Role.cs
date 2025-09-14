@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-
 namespace OrderLagerSystem.Api.Models;
 
 /// <summary>

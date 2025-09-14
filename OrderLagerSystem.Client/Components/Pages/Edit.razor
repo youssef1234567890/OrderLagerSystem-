@@ -1,0 +1,223 @@
+@page "/edit/{id:int}"
+@rendermode InteractiveServer
+@using OrderLagerSystem.Client.Services
+@inject ArticleService ArticleService
+@inject NavigationManager Navigation
+@inject AuthService AuthService
+
+<PageTitle>Redigera artikel</PageTitle>
+
+<h3>Redigera artikel</h3>
+
+@if (isLoading)
+{
+    <div class="d-flex justify-content-center">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Laddar...</span>
+        </div>
+    </div>
+}
+else if (!AuthService.IsAuthenticated || !HasRequiredRole())
+{
+    <div class="alert alert-warning">
+        <p>Du har inte behörighet att redigera artiklar.</p>
+        <button class="btn btn-primary" @onclick="NavigateToArticles">Tillbaka till artiklar</button>
+    </div>
+}
+else if (article == null)
+{
+    <div class="alert alert-danger">
+        <p>Artikeln kunde inte hittas.</p>
+        <button class="btn btn-primary" @onclick="NavigateToArticles">Tillbaka till artiklar</button>
+    </div>
+}
+else
+{
+    <EditForm Model="article" OnValidSubmit="SaveArticle" FormName="EditArticleForm">
+        <DataAnnotationsValidator />
+        <ValidationSummary class="text-danger" />
+
+        <div class="mb-3">
+            <label class="form-label">SKU</label>
+            <InputText class="form-control" @bind-Value="article.Sku" disabled />
+            <small class="text-muted">SKU kan inte ändras</small>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Namn</label>
+            <InputText class="form-control" @bind-Value="article.Name" />
+            <ValidationMessage For="@(() => article.Name)" class="text-danger" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Beskrivning</label>
+            <InputTextArea class="form-control" @bind-Value="article.Description" />
+            <ValidationMessage For="@(() => article.Description)" class="text-danger" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Pris</label>
+            <InputNumber class="form-control" @bind-Value="article.Price" ParsingErrorMessage="Ange ett giltigt pris" />
+            <ValidationMessage For="@(() => article.Price)" class="text-danger" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Antal i lager</label>
+            <InputNumber class="form-control" @bind-Value="article.StockQuantity" ParsingErrorMessage="Ange ett giltigt antal" />
+            <ValidationMessage For="@(() => article.StockQuantity)" class="text-danger" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Min. lager</label>
+            <InputNumber class="form-control" @bind-Value="article.MinimumStock" ParsingErrorMessage="Ange ett giltigt antal" />
+            <ValidationMessage For="@(() => article.MinimumStock)" class="text-danger" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Lagringsplats</label>
+            <InputText class="form-control" @bind-Value="article.StorageLocation" />
+            <ValidationMessage For="@(() => article.StorageLocation)" class="text-danger" />
+        </div>
+
+        <div class="form-check mb-3">
+            <InputCheckbox class="form-check-input" @bind-Value="article.IsActive" />
+            <label class="form-check-label">Aktiv artikel</label>
+        </div>
+
+        <button class="btn btn-primary" type="submit" disabled="@isSaving">
+            @if (isSaving)
+            {
+                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                <span>Sparar...</span>
+            }
+            else
+            {
+                <span>Spara</span>
+            }
+        </button>
+        <button class="btn btn-secondary ms-2" @onclick="Cancel">Avbryt</button>
+    </EditForm>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger mt-3">
+            @errorMessage
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="alert alert-success mt-3">
+            @successMessage
+        </div>
+    }
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+    private ArticleDto? article;
+    private bool isLoading = true;
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+    private bool isSaving = false;
+
+    private bool HasRequiredRole()
+    {
+        return AuthService.CurrentUser?.Roles?.Any(r => r == "Admin" || r == "Orderkoordinator") ?? false;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            isLoading = true;
+            article = await ArticleService.GetArticleAsync(Id);
+            if (article == null)
+            {
+                errorMessage = "Artikeln kunde inte hittas.";
+            }
+        }
+        catch (UnauthorizedAccessException)
+        {
+            errorMessage = "Du har inte behörighet att visa denna artikel.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Ett fel inträffade vid laddning av artikeln: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SaveArticle()
+    {
+        if (article == null)
+        {
+            errorMessage = "Ingen artikel att uppdatera.";
+            return;
+        }
+
+        try
+        {
+            isSaving = true;
+            StateHasChanged();
+
+            var updateDto = new UpdateArticleDto
+            {
+                Sku = article.Sku,
+                Name = article.Name,
+                Description = article.Description,
+                Price = article.Price,
+                StockQuantity = article.StockQuantity,
+                MinimumStock = article.MinimumStock,
+                StorageLocation = article.StorageLocation,
+                IsActive = article.IsActive
+            };
+
+            Console.WriteLine($"Updating article {Id}: {System.Text.Json.JsonSerializer.Serialize(updateDto)}");
+            var updated = await ArticleService.UpdateArticleAsync(Id, updateDto);
+            if (updated != null)
+            {
+                successMessage = $"Artikel '{article.Name}' har uppdaterats framgångsrikt.";
+                Console.WriteLine("SaveArticle: Navigating to /articles");
+                Navigation.NavigateTo("/articles");
+            }
+            else
+            {
+                errorMessage = "Kunde inte uppdatera artikel. Kontrollera att all data är korrekt.";
+            }
+        }
+        catch (InvalidOperationException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            errorMessage = "Du har inte behörighet att uppdatera artiklar.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Ett oväntat fel inträffade: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+            StateHasChanged();
+        }
+    }
+
+    private void Cancel()
+    {
+        Console.WriteLine("Cancel: Navigating to /articles");
+        Navigation.NavigateTo("/articles");
+    }
+
+    private void NavigateToArticles()
+    {
+        Console.WriteLine("NavigateToArticles: Navigating to /articles");
+        Navigation.NavigateTo("/articles");
+    }
+}
