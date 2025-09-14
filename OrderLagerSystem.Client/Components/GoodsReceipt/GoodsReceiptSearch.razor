@@ -1,0 +1,173 @@
+@using OrderLagerSystem.Api.DTOs
+@using OrderLagerSystem.Client.Services
+@inject StockMovementApiService StockMovementApi
+@inject ILogger<GoodsReceiptSearch> Logger
+@rendermode InteractiveServer
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Sök inköpsorder för inleverans</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">Sök efter ordrenummer</label>
+                    <div class="input-group">
+                        <input type="text" @bind="searchOrderNumber" @onkeypress="OnKeyPress" 
+                               class="form-control" placeholder="T.ex. PO-20250913-001" />
+                        <button class="btn btn-primary" @onclick="SearchOrder" disabled="@isSearching">
+                            @if (isSearching)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                            }
+                            Sök
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger" role="alert">
+                @errorMessage
+            </div>
+        }
+
+        @if (foundOrder != null)
+        {
+            <div class="alert alert-success" role="alert">
+                <h6>Order hittad!</h6>
+                <p><strong>Ordrenummer:</strong> @foundOrder.OrderNumber</p>
+                <p><strong>Artikel:</strong> @foundOrder.Article?.Name (@foundOrder.Article?.Sku)</p>
+                <p><strong>Antal:</strong> @foundOrder.OrderedQuantity</p>
+                <p><strong>Leverantör:</strong> @foundOrder.SupplierName</p>
+                <button class="btn btn-success" @onclick="() => OnOrderSelected.InvokeAsync(foundOrder.OrderNumber)">
+                    Fortsätt med inleverans
+                </button>
+            </div>
+        }
+    </div>
+</div>
+
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0">Alla väntande inköpsorder</h5>
+    </div>
+    <div class="card-body">
+        @if (pendingOrders?.Any() == true)
+        {
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Ordrenummer</th>
+                            <th>Artikel</th>
+                            <th>SKU</th>
+                            <th>Antal</th>
+                            <th>Orderdatum</th>
+                            <th>Leverantör</th>
+                            <th>Åtgärder</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var order in pendingOrders)
+                        {
+                            <tr>
+                                <td>@order.OrderNumber</td>
+                                <td>@order.Article?.Name</td>
+                                <td>@order.Article?.Sku</td>
+                                <td>@order.OrderedQuantity</td>
+                                <td>@order.OrderDate.ToString("yyyy-MM-dd")</td>
+                                <td>@order.SupplierName</td>
+                                <td>
+                                    <button class="btn btn-success btn-sm" @onclick="() => OnOrderSelected.InvokeAsync(order.OrderNumber)">
+                                        Ta emot
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="text-center text-muted">
+                <p>Inga väntande inköpsorder hittades.</p>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback<string> OnOrderSelected { get; set; }
+
+    private string searchOrderNumber = "";
+    private PendingPurchaseOrder? foundOrder;
+    private List<PendingPurchaseOrder>? pendingOrders = new List<PendingPurchaseOrder>();
+    private bool isSearching = false;
+    private string errorMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPendingOrders();
+    }
+
+    private async Task LoadPendingOrders()
+    {
+        try
+        {
+            var allOrders = await StockMovementApi.GetPurchaseOrdersAsync(); 
+            // Filter only pending orders for search
+            pendingOrders = allOrders?.Where(o => o.Status == "Pending").ToList();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading pending orders");
+            pendingOrders = new List<PendingPurchaseOrder>();
+        }
+    }
+
+    private async Task SearchOrder()
+    {
+        if (string.IsNullOrEmpty(searchOrderNumber))
+        {
+            errorMessage = "Ange ett ordrenummer att söka efter.";
+            return;
+        }
+
+        isSearching = true;
+        errorMessage = "";
+        foundOrder = null;
+
+        try
+        {
+            // Search in pending orders
+            foundOrder = pendingOrders?.FirstOrDefault(o => o.OrderNumber.Equals(searchOrderNumber, StringComparison.OrdinalIgnoreCase));
+            
+            if (foundOrder == null)
+            {
+                errorMessage = $"Ingen väntande order hittades med ordrenummer: {searchOrderNumber}";
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error searching for order");
+            errorMessage = "Ett fel uppstod vid sökning.";
+        }
+        finally
+        {
+            isSearching = false;
+        }
+    }
+
+    private async Task OnKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await SearchOrder();
+        }
+    }
+}

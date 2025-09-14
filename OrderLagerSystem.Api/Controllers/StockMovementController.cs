@@ -54,7 +54,7 @@ public class StockMovementController : ControllerBase
     /// <param name="request">Goods receipt details</param>
     /// <returns>Receipt confirmation with updated stock levels</returns>
     [HttpPost("receipt")]
-    [Authorize(Roles = "Admin,Employee")]
+    [Authorize(Roles = "Admin,Orderkoordinator,Employee")]
     public async Task<ActionResult<GoodsReceiptResponse>> ReceiveGoods([FromBody] GoodsReceiptRequest request)
     {
         if (!ModelState.IsValid)
@@ -73,14 +73,14 @@ public class StockMovementController : ControllerBase
     }
 
     /// <summary>
-    /// Get all pending purchase orders awaiting receipt
+    /// Get all purchase orders (both pending and received)
     /// </summary>
-    /// <returns>List of pending purchase orders</returns>
+    /// <returns>List of all purchase orders with status</returns>
     [HttpGet("pending-purchases")]
-    [Authorize(Roles = "Admin,Employee")]
-    public async Task<ActionResult<List<PendingPurchaseOrder>>> GetPendingPurchaseOrders()
+    [Authorize(Roles = "Admin,Orderkoordinator,Employee")]
+    public async Task<ActionResult<List<PendingPurchaseOrder>>> GetPurchaseOrders()
     {
-        var result = await _stockMovementService.GetPendingPurchaseOrdersAsync();
+        var result = await _stockMovementService.GetPurchaseOrdersAsync(); 
         return Ok(result);
     }
 

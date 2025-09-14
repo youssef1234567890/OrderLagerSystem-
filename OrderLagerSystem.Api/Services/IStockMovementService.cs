@@ -22,10 +22,10 @@ public interface IStockMovementService
     Task<GoodsReceiptResponse> ReceiveGoodsAsync(GoodsReceiptRequest request);
 
     /// <summary>
-    /// Get all pending purchase orders awaiting receipt
+    /// Get all purchase orders (both pending and received)
     /// </summary>
     /// <returns>List of pending purchase orders</returns>
-    Task<List<PendingPurchaseOrder>> GetPendingPurchaseOrdersAsync();
+    Task<List<PendingPurchaseOrder>> GetPurchaseOrdersAsync();
 
     /// <summary>
     /// Get article information by SKU or ID for purchase lookup
@@ -33,5 +33,4 @@ public interface IStockMovementService
     /// <param name="identifier">SKU or Article ID</param>
     /// <returns>Article information if found</returns>
     Task<ArticleInfo?> GetArticleInfoAsync(string identifier);
-
 }

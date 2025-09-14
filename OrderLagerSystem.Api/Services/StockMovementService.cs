@@ -6,7 +6,7 @@ using OrderLagerSystem.Api.Models;
 namespace OrderLagerSystem.Api.Services;
 
 /// <summary>
-/// Service implementation for stock movement operations (In/Out)
+/// Service implementation for stock movement operations (Inkommande)
 /// </summary>
 public class StockMovementService : IStockMovementService
 {
@@ -174,26 +174,27 @@ public class StockMovementService : IStockMovementService
     }
 
     /// <summary>
-    /// Get all pending purchase orders awaiting receipt
+    /// Get all purchase orders (both pending and received)
     /// </summary>
-    public async Task<List<PendingPurchaseOrder>> GetPendingPurchaseOrdersAsync()
+    public async Task<List<PendingPurchaseOrder>> GetPurchaseOrdersAsync()
     {
         try
         {
-            var pendingOrders = await _context.StockMovements
+            var allOrders = await _context.StockMovements
                 .Include(sm => sm.Article)
-                .Where(sm => sm.MovementType == "PendingPurchase" 
-                    && sm.Notes != null 
-                    && sm.Notes.Contains("STATUS:PENDING"))
+                .Where(sm => sm.MovementType == "PendingPurchase")
                 .ToListAsync();
 
             var result = new List<PendingPurchaseOrder>();
 
-            foreach (var movement in pendingOrders)
+            foreach (var movement in allOrders)
             {
                 var notes = movement.Notes ?? "";
                 var orderNumber = ExtractFromNotes(notes, "ORDER:");
                 var supplierName = ExtractFromNotes(notes, "SUPPLIER:");
+                
+                // Determine status based on notes
+                var status = notes.Contains("STATUS:RECEIVED") ? "Received" : "Pending";
 
                 if (!string.IsNullOrEmpty(orderNumber))
                 {
@@ -211,16 +212,17 @@ public class StockMovementService : IStockMovementService
                         OrderedQuantity = movement.Quantity,
                         OrderDate = movement.CreatedUtc,
                         SupplierName = supplierName,
-                        Notes = movement.Reason
+                        Notes = movement.Notes, 
+                        Status = status
                     });
                 }
             }
 
-            return result.OrderBy(po => po.OrderDate).ToList();
+            return result.OrderByDescending(po => po.OrderDate).ToList(); // Nyaste först
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error retrieving pending purchase orders");
+            _logger.LogError(ex, "Error retrieving purchase orders");
             return new List<PendingPurchaseOrder>();
         }
     }
