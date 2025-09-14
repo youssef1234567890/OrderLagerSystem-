@@ -10,6 +10,10 @@ builder.Services.AddRazorComponents()
 // Registrera AuthService som Singleton för att behålla state
 builder.Services.AddSingleton<AuthService>();
 
+// Registrera services för artikel-operationer och sträckoder
+builder.Services.AddScoped<IArticleService, ArticleService>();
+builder.Services.AddScoped<IBarcodeService, BarcodeService>();
+
 // Konfigurera HttpClient för API-kommunikation
 builder.Services.AddHttpClient("OrderLagerSystemApi", client =>
 {
