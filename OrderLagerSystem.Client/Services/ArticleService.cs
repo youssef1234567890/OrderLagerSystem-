@@ -1,10 +1,10 @@
-using OrderLagerSystem.Client.DTOs;
+using OrderLagerSystem.Api.DTOs;
 using System.Net.Http.Json;
 using System.Text.Json;
 
 namespace OrderLagerSystem.Client.Services;
 
-public class ArticleService : IArticleService
+public class ArticleService
 {
     private readonly HttpClient _httpClient;
     private readonly AuthService _authService;

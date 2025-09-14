@@ -1,9 +1,7 @@
 @page "/articles"
-@using OrderLagerSystem.Client.DTOs
 @using OrderLagerSystem.Client.Services
-@using ClientDto = OrderLagerSystem.Client.DTOs
-@inject IArticleService ArticleService
-@inject IBarcodeService BarcodeService
+@inject ArticleService ArticleService
+@inject BarcodeService BarcodeService
 @inject AuthService AuthService
 @rendermode InteractiveServer
 @inject NavigationManager NavManager
@@ -48,7 +46,7 @@ else
     else if (articles != null && articles.Any())
     {
         <div class="row">
-            @foreach (ClientDto.ArticleDto article in articles)
+            @foreach (ArticleDto article in articles)
             {
                 <div class="col-md-6 col-lg-4 mb-3">
                     <div class="card @(article.IsLowStock ? "border-warning" : "")">
@@ -163,9 +161,9 @@ else
                             <div class="mb-3">
                                 <label class="form-label">Format:</label>
                                 <select class="form-select" value="@selectedBarcodeFormat" @onchange="RegenerateBarcode">
-                                    <option value="@ClientDto.BarcodeFormat.Code128">Code 128 (Rekommenderat)</option>
-                                    <option value="@ClientDto.BarcodeFormat.Code39">Code 39</option>
-                                    <option value="@ClientDto.BarcodeFormat.QRCode">QR Code</option>
+                                    <option value="@BarcodeFormat.Code128">Code 128 (Rekommenderat)</option>
+                                    <option value="@BarcodeFormat.Code39">Code 39</option>
+                                    <option value="@BarcodeFormat.QRCode">QR Code</option>
                                 </select>
                             </div>
                             
@@ -212,7 +210,7 @@ else
 }
 
 @code {
-    private List<ClientDto.ArticleDto>? articles;
+    private List<ArticleDto>? articles;
     private string searchTerm = string.Empty;
     private bool isLoading = true;
     private string errorMessage = string.Empty;
@@ -221,10 +219,10 @@ else
     // Barcode modal state
     private bool showBarcodeModal = false;
     private bool isGeneratingBarcode = false;
-    private ClientDto.BarcodeResponse? currentBarcode = null;
+    private BarcodeResponse? currentBarcode = null;
     private string selectedArticleSku = string.Empty;
     private int selectedArticleId = 0;
-    private ClientDto.BarcodeFormat selectedBarcodeFormat = ClientDto.BarcodeFormat.Code128;
+    private BarcodeFormat selectedBarcodeFormat = BarcodeFormat.Code128;
     private string barcodeError = string.Empty;
 
     protected override async Task OnInitializedAsync()
@@ -346,7 +344,7 @@ private void EditArticle(int articleId)
     {
         selectedArticleId = articleId;
         selectedArticleSku = sku;
-        selectedBarcodeFormat = ClientDto.BarcodeFormat.Code128;
+        selectedBarcodeFormat = BarcodeFormat.Code128;
         currentBarcode = null;
         barcodeError = string.Empty;
         showBarcodeModal = true;
@@ -395,7 +393,7 @@ private void EditArticle(int articleId)
     
     private async Task RegenerateBarcode(ChangeEventArgs e)
     {
-        if (Enum.TryParse<ClientDto.BarcodeFormat>(e.Value?.ToString(), out var newFormat))
+        if (Enum.TryParse<BarcodeFormat>(e.Value?.ToString(), out var newFormat))
         {
             selectedBarcodeFormat = newFormat;
             await GenerateCurrentBarcode();

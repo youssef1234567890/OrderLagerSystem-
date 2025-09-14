@@ -1,6 +1,6 @@
-using OrderLagerSystem.Client.DTOs;
+using OrderLagerSystem.Api.DTOs;
 
-namespace OrderLagerSystem.Client.Services;
+namespace OrderLagerSystem.Api.Services;
 
 public interface IArticleService
 {

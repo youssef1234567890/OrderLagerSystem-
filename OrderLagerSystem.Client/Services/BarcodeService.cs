@@ -1,10 +1,10 @@
-using OrderLagerSystem.Client.DTOs;
+using OrderLagerSystem.Api.DTOs;
 using System.Text.Json;
 using System.Net.Http.Json;
 
 namespace OrderLagerSystem.Client.Services;
 
-public class BarcodeService : IBarcodeService
+public class BarcodeService
 {
     private readonly HttpClient _httpClient;
     private readonly AuthService _authService;
