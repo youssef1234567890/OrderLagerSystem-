@@ -1,4 +1,4 @@
-using OrderLagerSystem.Client.DTOs;
+using OrderLagerSystem.Api.DTOs;
 
 namespace OrderLagerSystem.Client.Services;
 
