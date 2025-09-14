@@ -1,0 +1,198 @@
+@using OrderLagerSystem.Api.DTOs
+@using OrderLagerSystem.Client.Services
+@inject StockMovementApiService StockMovementApi
+@inject ILogger<PurchaseOrderForm> Logger
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Ny inköpsorder</h5>
+    </div>
+    <div class="card-body">
+        <EditForm Model="purchaseRequest" OnValidSubmit="CreatePurchaseOrder">
+            <DataAnnotationsValidator />
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">Ordrenummer (automatiskt genererat)</label>
+                        <input type="text" class="form-control" value="@orderNumber" readonly />
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">Leverantörsnamn</label>
+                        <InputText @bind-Value="purchaseRequest.SupplierName" class="form-control" placeholder="T.ex. Dell Technologies AB" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">Artikelnummer/SKU *</label>
+                        <div class="input-group">
+                            <InputText @bind-Value="purchaseRequest.ArticleIdentifier" class="form-control" placeholder="T.ex. DESKTOP-HP-002" />
+                            <button type="button" class="btn btn-outline-secondary" @onclick="LoadArticleInfo" disabled="@isLoadingArticle">
+                                @if (isLoadingArticle)
+                                {
+                                    <span class="spinner-border spinner-border-sm" role="status"></span>
+                                }
+                                else
+                                {
+                                    <span>Sök</span>
+                                }
+                            </button>
+                        </div>
+                        <ValidationMessage For="@(() => purchaseRequest.ArticleIdentifier)" />
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">Antal *</label>
+                        <InputNumber @bind-Value="purchaseRequest.Quantity" class="form-control" min="1" max="10000" />
+                        <ValidationMessage For="@(() => purchaseRequest.Quantity)" />
+                    </div>
+                </div>
+            </div>
+
+            @if (articleInfo != null)
+            {
+                <div class="alert alert-info">
+                    <h6>Artikel hittad!</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Artikelnamn:</strong> @articleInfo.Name<br/>
+                            <strong>SKU:</strong> @articleInfo.Sku
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Nuvarande lager:</strong> @articleInfo.CurrentStock<br/>
+                            <strong>Lagerplats:</strong> @articleInfo.StorageLocation
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <div class="mb-3">
+                <label class="form-label">Anteckningar</label>
+                <InputTextArea @bind-Value="purchaseRequest.Notes" class="form-control" rows="3" placeholder="Valfria anteckningar om beställningen..." />
+            </div>
+
+            <div class="d-flex justify-content-between">
+                <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                    @if (isSubmitting)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                    }
+                    Skapa inköpsorder
+                </button>
+            </div>
+        </EditForm>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger mt-3" role="alert">
+                @errorMessage
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <div class="alert alert-success mt-3" role="alert">
+                @successMessage
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback<SimplePurchaseResponse> OnOrderCreated { get; set; }
+
+    private SimplePurchaseRequest purchaseRequest = new();
+    private ArticleInfo? articleInfo;
+    private string orderNumber = "";
+    private bool isSubmitting = false;
+    private bool isLoadingArticle = false;
+    private string errorMessage = "";
+    private string successMessage = "";
+
+    protected override void OnInitialized()
+    {
+        // Generate order number
+        orderNumber = GenerateOrderNumber();
+    }
+
+    private async Task LoadArticleInfo()
+    {
+        if (string.IsNullOrEmpty(purchaseRequest.ArticleIdentifier))
+        {
+            errorMessage = "Ange ett artikelnummer/SKU att söka efter.";
+            return;
+        }
+
+        isLoadingArticle = true;
+        errorMessage = "";
+        articleInfo = null;
+
+        try
+        {
+            articleInfo = await StockMovementApi.GetArticleInfoAsync(purchaseRequest.ArticleIdentifier);
+            if (articleInfo != null)
+            {
+                Logger.LogInformation("Article found: {Sku} - {Name}", articleInfo.Sku, articleInfo.Name);
+            }
+            else
+            {
+                errorMessage = "Artikel hittades inte. Kontrollera artikelnummer/SKU.";
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading article info for {Identifier}", purchaseRequest.ArticleIdentifier);
+            errorMessage = "Fel vid hämtning av artikelinformation.";
+        }
+        finally
+        {
+            isLoadingArticle = false;
+        }
+    }
+
+    private async Task CreatePurchaseOrder()
+    {
+        isSubmitting = true;
+        errorMessage = "";
+        successMessage = "";
+
+        try
+        {
+            Logger.LogInformation("Creating purchase order: ArticleIdentifier={ArticleIdentifier}, Quantity={Quantity}", 
+                purchaseRequest.ArticleIdentifier, purchaseRequest.Quantity);
+                
+            var response = await StockMovementApi.CreatePurchaseOrderAsync(purchaseRequest);
+            
+            if (response != null && response.Success)
+            {
+                successMessage = $"Inköpsorder {response.OrderNumber} skapad framgångsrikt!";
+                await OnOrderCreated.InvokeAsync(response);
+            }
+            else
+            {
+                errorMessage = response?.Message ?? "Fel vid skapande av inköpsorder.";
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error creating purchase order");
+            errorMessage = "Ett fel uppstod vid skapande av inköpsorder.";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private string GenerateOrderNumber()
+    {
+        var today = DateTime.Now.ToString("yyyyMMdd");
+        return $"PO-{today}-001"; // Simple generation
+    }
+}

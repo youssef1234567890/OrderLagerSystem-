@@ -1,0 +1,76 @@
+@page "/purchase-orders"
+@using OrderLagerSystem.Api.DTOs
+@using OrderLagerSystem.Client.Services
+@inject StockMovementApiService StockMovementApi
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>Inköpsorder</PageTitle>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1>Inköpsorder</h1>
+                    <p class="text-muted">Hantera alla inköpsorder</p>
+                </div>
+                @if (CanCreatePurchaseOrders)
+                {
+                    <button class="btn btn-primary" @onclick="ToggleCreateForm">
+                        @(showCreateForm ? "Visa lista" : "Skapa beställning")
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            @if (showCreateForm)
+            {
+                <!-- Create Purchase Order Form -->
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Skapa ny inköpsorder</h5>
+                        <button class="btn btn-outline-secondary btn-sm" @onclick="ToggleCreateForm">
+                            Stäng
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <PurchaseOrderForm OnOrderCreated="OnOrderCreated" />
+                    </div>
+                </div>
+            }
+            else
+            {
+                <!-- Purchase Orders List -->
+                <PurchaseOrderList />
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private bool showCreateForm = false;
+
+    // Role-based permissions
+    private bool CanCreatePurchaseOrders => 
+        AuthService.CurrentUser?.Roles?.Any(r => r == "Admin" || r == "Orderkoordinator") == true;
+
+    private void ToggleCreateForm()
+    {
+        showCreateForm = !showCreateForm;
+    }
+
+    private void OnOrderCreated(SimplePurchaseResponse response)
+    {
+        if (response.Success)
+        {
+            // Hide form and show list
+            showCreateForm = false;
+            StateHasChanged();
+        }
+    }
+}

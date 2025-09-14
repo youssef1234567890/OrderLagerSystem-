@@ -1,0 +1,314 @@
+@using OrderLagerSystem.Api.DTOs
+@using OrderLagerSystem.Client.Services
+@inject StockMovementApiService StockMovementApi
+@inject ILogger<GoodsReceiptDetails> Logger
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Inleverans för order: @OrderNumber</h5>
+        <button class="btn btn-outline-secondary btn-sm" @onclick="GoBack">
+            Tillbaka till sök
+        </button>
+    </div>
+    <div class="card-body">
+        @if (orderDetails != null)
+        {
+            <!-- Order Information -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <h6>Orderinformation</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <tr>
+                                <td><strong>Ordrenummer:</strong></td>
+                                <td>@orderDetails.OrderNumber</td>
+                                <td><strong>Leverantör:</strong></td>
+                                <td>@orderDetails.SupplierName</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Artikel:</strong></td>
+                                <td>@orderDetails.Article.Name</td>
+                                <td><strong>SKU:</strong></td>
+                                <td>@orderDetails.Article.Sku</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Beställt antal:</strong></td>
+                                <td>@orderDetails.OrderedQuantity</td>
+                                <td><strong>Orderdatum:</strong></td>
+                                <td>@orderDetails.OrderDate.ToString("yyyy-MM-dd")</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Nuvarande lager:</strong></td>
+                                <td>@orderDetails.Article.CurrentStock</td>
+                                <td><strong>Lagerplats:</strong></td>
+                                <td>@orderDetails.Article.StorageLocation</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Anteckningar:</strong></td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(originalNotes) && originalNotes != $"Purchase order {OrderNumber}")
+                                    {
+                                        @originalNotes
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Inga anteckningar</span>
+                                    }
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Receipt Form -->
+            <EditForm Model="receiptRequest" OnValidSubmit="ProcessReceipt">
+                <DataAnnotationsValidator />
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Mottaget antal *</label>
+                            <InputNumber @bind-Value="receiptRequest.ReceivedQuantity" 
+                                        class="form-control" 
+                                        min="1" 
+                                        max="@orderDetails.OrderedQuantity" />
+                            <ValidationMessage For="@(() => receiptRequest.ReceivedQuantity)" />
+                            <small class="form-text text-muted">
+                                Max: @orderDetails.OrderedQuantity (beställt antal)
+                            </small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Lagerplats (valfritt)</label>
+                            <InputText @bind-Value="receiptRequest.StorageLocation" 
+                                      class="form-control" 
+                                      placeholder="@orderDetails.Article.StorageLocation" />
+                            <small class="form-text text-muted">
+                                Lämna tomt för att behålla nuvarande: @orderDetails.Article.StorageLocation
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Extern referens (valfritt)</label>
+                            <InputText @bind-Value="receiptRequest.ExternalReference" 
+                                      class="form-control" 
+                                      placeholder="T.ex. leverantörs fakturanummer" />
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Nytt lager efter inleverans</label>
+                            <input type="text" class="form-control" 
+                                   value="@(orderDetails.Article.CurrentStock + receiptRequest.ReceivedQuantity)" 
+                                   readonly />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Anteckningar (valfritt)</label>
+                    <InputTextArea @bind-Value="receiptRequest.Notes" 
+                                  class="form-control" 
+                                  rows="3" 
+                                  placeholder="Anteckningar om inleveransen..." />
+                </div>
+
+                <div class="d-flex justify-content-between">
+                    <button type="button" class="btn btn-secondary" @onclick="GoBack">
+                        Avbryt
+                    </button>
+                    <button type="submit" class="btn btn-success" disabled="@isProcessing">
+                        @if (isProcessing)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                        }
+                        Registrera inleverans
+                    </button>
+                </div>
+            </EditForm>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger mt-3" role="alert">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    @errorMessage
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(successMessage))
+            {
+                <div class="alert alert-success mt-3" role="alert">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-check-circle me-3" style="font-size: 1.5rem;"></i>
+                        <div>
+                            <h6 class="alert-heading mb-0">
+                                <i class="fas fa-truck me-2"></i>
+                                Inleverans lyckades!
+                            </h6>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+        else if (isLoading)
+        {
+            <div class="text-center">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Laddar orderdetaljer...</span>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-warning" role="alert">
+                Kunde inte hämta orderdetaljer för: @OrderNumber
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public string OrderNumber { get; set; } = "";
+    [Parameter] public EventCallback OnReceiptCompleted { get; set; }
+
+    private PendingPurchaseOrder? orderDetails;
+    private GoodsReceiptRequest receiptRequest = new();
+    private bool isProcessing = false;
+    private bool isLoading = true;
+    private string errorMessage = "";
+    private string successMessage = "";
+    private string originalNotes = ""; 
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadOrderDetails();
+    }
+
+    private async Task LoadOrderDetails()
+    {
+        if (string.IsNullOrEmpty(OrderNumber))
+        {
+            errorMessage = "Inget ordrenummer angivet.";
+            isLoading = false;
+            return;
+        }
+
+        try
+        {
+            var allOrders = await StockMovementApi.GetPurchaseOrdersAsync();
+            orderDetails = allOrders?.FirstOrDefault(o => o.OrderNumber == OrderNumber && o.Status == "Pending");
+            
+            if (orderDetails != null)
+            {
+                // Get notes from the original order
+                originalNotes = await GetOriginalOrderNotes(OrderNumber);
+                
+                // Initialize receipt request
+                receiptRequest.OrderNumber = OrderNumber;
+                receiptRequest.ReceivedQuantity = orderDetails.OrderedQuantity;
+                receiptRequest.StorageLocation = orderDetails.Article?.StorageLocation ?? "";
+            }
+            else
+            {
+                errorMessage = $"Order {OrderNumber} hittades inte eller är redan mottagen.";
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading order details for {OrderNumber}", OrderNumber);
+            errorMessage = "Ett fel uppstod vid hämtning av orderdetaljer.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task<string> GetOriginalOrderNotes(string orderNumber)
+    {
+        try
+        {
+            // Get all orders and find the original one
+            var allOrders = await StockMovementApi.GetPurchaseOrdersAsync();
+            var originalOrder = allOrders?.FirstOrDefault(o => o.OrderNumber == orderNumber);
+            
+            if (originalOrder != null)
+            {
+                // Extract user notes from system Notes
+                var notes = originalOrder.Notes ?? "";
+                
+                // Find user notes (after STATUS:PENDING| or STATUS:RECEIVED|)
+                if (notes.Contains("STATUS:PENDING|"))
+                {
+                    var parts = notes.Split("STATUS:PENDING|");
+                    if (parts.Length > 1)
+                    {
+                        return parts[1].Trim();
+                    }
+                }
+                else if (notes.Contains("STATUS:RECEIVED|"))
+                {
+                    var parts = notes.Split("STATUS:RECEIVED|");
+                    if (parts.Length > 1)
+                    {
+                        return parts[1].Trim();
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error getting original order notes");
+        }
+        
+        return "";
+    }
+
+    private async Task ProcessReceipt()
+    {
+        isProcessing = true;
+        errorMessage = "";
+        successMessage = "";
+
+        try
+        {
+            var response = await StockMovementApi.ReceiveGoodsAsync(receiptRequest);
+            
+            if (response?.Success == true)
+            {
+                successMessage = "Success";
+                StateHasChanged();
+            
+                await Task.Delay(1000);
+                await OnReceiptCompleted.InvokeAsync();
+            }
+            else
+            {
+                errorMessage = response?.Message ?? "Fel vid registrering av inleverans.";
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error processing goods receipt for {OrderNumber}", OrderNumber);
+            errorMessage = "Ett fel uppstod vid registrering av inleverans.";
+            StateHasChanged();
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private void GoBack()
+    {
+        OnReceiptCompleted.InvokeAsync();
+    }
+}
+

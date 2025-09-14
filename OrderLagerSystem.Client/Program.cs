@@ -9,6 +9,7 @@ builder.Services.AddRazorComponents()
 
 // Registrera AuthService som Singleton för att behålla state
 builder.Services.AddSingleton<AuthService>();
+builder.Services.AddScoped<StockMovementApiService>();
 
 // Registrera services för artikel-operationer och sträckoder
 builder.Services.AddScoped<ArticleService>();

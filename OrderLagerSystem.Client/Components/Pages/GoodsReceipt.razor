@@ -1,0 +1,74 @@
+@page "/goods-receipt"
+@using OrderLagerSystem.Api.DTOs
+@using OrderLagerSystem.Client.Services
+@using Microsoft.AspNetCore.WebUtilities
+@inject StockMovementApiService StockMovementApi
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@rendermode InteractiveServer
+
+<PageTitle>Inleverans</PageTitle>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1>Inleverans</h1>
+                    <p class="text-muted">Ta emot varor från leverantörer</p>
+                </div>
+                <button class="btn btn-secondary" @onclick="GoBack">
+                    Tillbaka till inköpsorder
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            @if (string.IsNullOrEmpty(selectedOrderNumber))
+            {
+                <!-- Search for order -->
+                <GoodsReceiptSearch OnOrderSelected="OnOrderSelected" />
+            }
+            else
+            {
+                <!-- Show order details and receipt form -->
+                <GoodsReceiptDetails OrderNumber="@selectedOrderNumber" OnReceiptCompleted="OnReceiptCompleted" />
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private string selectedOrderNumber = "";
+
+    protected override void OnInitialized()
+    {
+        // Check if order number is provided in URL query
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("orderNumber", out var orderNumber))
+        {
+            selectedOrderNumber = orderNumber.FirstOrDefault() ?? "";
+        }
+    }
+
+    private void OnOrderSelected(string orderNumber)
+    {
+        selectedOrderNumber = orderNumber;
+        StateHasChanged();
+    }
+
+    private void OnReceiptCompleted()
+    {
+        // Navigate back to search or show success message
+        selectedOrderNumber = "";
+        StateHasChanged();
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/purchase-orders");
+    }
+}
