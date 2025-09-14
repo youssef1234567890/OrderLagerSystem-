@@ -6,6 +6,8 @@
 @inject IBarcodeService BarcodeService
 @inject AuthService AuthService
 @rendermode InteractiveServer
+@inject NavigationManager NavManager
+@inject NavigationManager Navigation
 
 <PageTitle>Artiklar</PageTitle>
 
@@ -94,9 +96,7 @@ else
                             }
                             
                             <div class="mt-3">
-                                <button class="btn btn-sm btn-outline-primary" @onclick="() => ViewDetails(article.ArticleId)">
-                                    Detaljer
-                                </button>
+
                                 <button class="btn btn-sm btn-outline-info ms-1" @onclick="() => ShowBarcode(article.ArticleId, article.Sku)">
                                     <i class="bi bi-upc-scan"></i> Streckkod
                                 </button>
@@ -287,23 +287,17 @@ else
         }
     }
 
-    private void ShowCreateForm()
-    {
-        // TODO: Navigate to create form or show modal
-        successMessage = "Skapa artikel-funktionalitet kommer snart...";
-    }
+private void ShowCreateForm()
+{
+    Navigation.NavigateTo("/create");
+}
 
-    private void ViewDetails(int articleId)
-    {
-        // TODO: Navigate to details page
-        successMessage = $"Visa detaljer för artikel {articleId} kommer snart...";
-    }
+private void EditArticle(int articleId)
+{
+    Navigation.NavigateTo($"/edit/{articleId}");
+}
 
-    private void EditArticle(int articleId)
-    {
-        // TODO: Navigate to edit form
-        successMessage = $"Redigera artikel {articleId} kommer snart...";
-    }
+
 
     private async Task DeleteArticle(int articleId, string articleName)
     {
