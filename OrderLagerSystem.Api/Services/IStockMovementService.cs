@@ -33,4 +33,12 @@ public interface IStockMovementService
     /// <param name="identifier">SKU or Article ID</param>
     /// <returns>Article information if found</returns>
     Task<ArticleInfo?> GetArticleInfoAsync(string identifier);
+
+    /// <summary>
+    /// Calculate the stock balance for an article at a specific storage location
+    /// </summary>
+    /// <param name="articleId">The ID of the article</param>
+    /// <param name="storageLocation">The storage location (optional)</param>
+    /// <returns>The stock balance</returns>
+    Task<int> CalculateStockBalanceAsync(int articleId, string? storageLocation);
 }

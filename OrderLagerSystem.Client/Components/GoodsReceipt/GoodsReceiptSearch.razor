@@ -26,6 +26,22 @@
                     </div>
                 </div>
             </div>
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">Sök efter lagringsplats</label>
+                    <div class="input-group">
+                        <input type="text" @bind="searchStorageLocation" @onkeypress="OnKeyPress" 
+                               class="form-control" placeholder="T.ex. Lager A" />
+                        <button class="btn btn-primary" @onclick="SearchByStorageLocation" disabled="@isSearching">
+                            @if (isSearching)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                            }
+                            Sök
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
 
         @if (!string.IsNullOrEmpty(errorMessage))
@@ -105,7 +121,8 @@
     [Parameter] public EventCallback<string> OnOrderSelected { get; set; }
 
     private string searchOrderNumber = "";
-    private PendingPurchaseOrder? foundOrder;
+    private string searchStorageLocation = "";
+    private PendingPurchaseOrder? foundOrder = null; // Explicitly initialize to null
     private List<PendingPurchaseOrder>? pendingOrders = new List<PendingPurchaseOrder>();
     private bool isSearching = false;
     private string errorMessage = "";
@@ -130,31 +147,36 @@
         }
     }
 
-    private async Task SearchOrder()
+    private Task SearchOrder()
     {
-        if (string.IsNullOrEmpty(searchOrderNumber))
+        return Task.CompletedTask;
+    }
+
+    private async Task SearchByStorageLocation()
+    {
+        if (string.IsNullOrEmpty(searchStorageLocation))
         {
-            errorMessage = "Ange ett ordrenummer att söka efter.";
+            errorMessage = "Ange en lagringsplats att söka efter.";
             return;
         }
 
         isSearching = true;
         errorMessage = "";
-        foundOrder = null;
+        pendingOrders = null;
 
         try
         {
-            // Search in pending orders
-            foundOrder = pendingOrders?.FirstOrDefault(o => o.OrderNumber.Equals(searchOrderNumber, StringComparison.OrdinalIgnoreCase));
-            
-            if (foundOrder == null)
+            var allOrders = await StockMovementApi.GetPurchaseOrdersAsync();
+            pendingOrders = allOrders?.Where(o => o.Article?.StorageLocation?.Equals(searchStorageLocation, StringComparison.OrdinalIgnoreCase) == true).ToList();
+
+            if (pendingOrders == null || !pendingOrders.Any())
             {
-                errorMessage = $"Ingen väntande order hittades med ordrenummer: {searchOrderNumber}";
+                errorMessage = $"Inga väntande order hittades för lagringsplats: {searchStorageLocation}";
             }
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Error searching for order");
+            Logger.LogError(ex, "Error searching by storage location");
             errorMessage = "Ett fel uppstod vid sökning.";
         }
         finally

@@ -94,7 +94,6 @@ public class StockMovementService : IStockMovementService
     {
         try
         {
-            // Find the pending purchase order using Notes field
             var pendingMovement = await _context.StockMovements
                 .Include(sm => sm.Article)
                 .FirstOrDefaultAsync(sm => sm.MovementType == "PendingPurchase" 
@@ -112,30 +111,27 @@ public class StockMovementService : IStockMovementService
                 };
             }
 
-            // Update article stock
             var article = pendingMovement.Article;
             var newStockLevel = article.StockQuantity + request.ReceivedQuantity;
             article.StockQuantity = newStockLevel;
 
-            // Update storage location if provided
             if (!string.IsNullOrEmpty(request.StorageLocation))
             {
                 article.StorageLocation = request.StorageLocation;
             }
 
-            // Create actual incoming movement
             var incomingMovement = new StockMovement
             {
                 ArticleId = article.ArticleId,
                 MovementType = StockMovement.MovementTypes.Incoming,
                 Quantity = request.ReceivedQuantity,
                 StockAfterMovement = newStockLevel,
+                StorageLocation = request.StorageLocation, // Added StorageLocation
                 Reason = $"Goods receipt for purchase order {request.OrderNumber}",
                 Notes = $"RECEIVED:{request.ReceivedQuantity}|EXTERNAL_REF:{request.ExternalReference}|{request.Notes}",
                 CreatedUtc = DateTime.UtcNow
             };
 
-            // Mark pending order as completed by updating its notes
             pendingMovement.Notes = pendingMovement.Notes?.Replace("STATUS:PENDING", "STATUS:RECEIVED");
 
             _context.StockMovements.Add(incomingMovement);
@@ -283,6 +279,18 @@ public class StockMovementService : IStockMovementService
         if (endIndex == -1) return notes.Substring(startIndex);
 
         return notes.Substring(startIndex, endIndex - startIndex);
+    }
+
+    /// <summary>
+    /// Calculate stock balance for an article and optional storage location
+    /// </summary>
+    public async Task<int> CalculateStockBalanceAsync(int articleId, string? storageLocation)
+    {
+        var stockMovements = await _context.StockMovements
+            .Where(sm => sm.ArticleId == articleId && (storageLocation == null || sm.StorageLocation == storageLocation))
+            .ToListAsync();
+
+        return stockMovements.Sum(sm => sm.Quantity);
     }
 
 }

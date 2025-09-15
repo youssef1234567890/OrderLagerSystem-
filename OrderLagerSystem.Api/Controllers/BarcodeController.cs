@@ -369,4 +369,25 @@ public class BarcodeController : ControllerBase
             return StatusCode(500, "Ett fel inträffade vid validering");
         }
     }
+
+    // Added endpoint for barcode scanning
+    [HttpGet("scan-barcode")]
+    public async Task<IActionResult> ScanBarcode(string barcode)
+    {
+        try
+        {
+            var response = await _barcodeService.ScanBarcodeAsync(barcode);
+            if (!response.Success)
+            {
+                return BadRequest(response);
+            }
+
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error scanning barcode {Barcode}", barcode);
+            return StatusCode(500, new { Message = "An error occurred while scanning the barcode", Error = ex.Message });
+        }
+    }
 }

@@ -53,4 +53,11 @@ public interface IBarcodeService
     /// <param name="format">Målformat</param>
     /// <returns>Normaliserad text</returns>
     string NormalizeTextForBarcode(string text, ApiBarcodeFormat format);
+
+    /// <summary>
+    /// Skannar en streckkod och returnerar den avkodade informationen
+    /// </summary>
+    /// <param name="barcode">Streckkoden att skanna</param>
+    /// <returns>Avkodad information från streckkoden</returns>
+    Task<BarcodeScanResponse> ScanBarcodeAsync(string barcode);
 }

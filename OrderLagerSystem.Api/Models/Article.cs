@@ -60,4 +60,6 @@ public class Article
     // Navigation properties
     public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
     public ICollection<StockMovement> StockMovements { get; set; } = new List<StockMovement>();
+
+    public string? Barcode { get; set; }
 }

@@ -4,6 +4,7 @@ using System.Text.Json;
 
 // Project imports
 using OrderLagerSystem.Api.DTOs;
+
 using OrderLagerSystem.Client.Services;
 
 namespace OrderLagerSystem.Client.Services;
@@ -175,5 +176,37 @@ public class StockMovementApiService
                 Errors = new List<string> { ex.Message }
             };
         }
+    }
+
+    // Added methods for storage location and stock balance endpoints
+    public async Task<int> GetStockBalanceAsync(int articleId, string? storageLocation = null)
+    {
+        var query = $"api/stockmovement/calculate-stock-balance?articleId={articleId}";
+        if (!string.IsNullOrEmpty(storageLocation))
+        {
+            query += $"&storageLocation={storageLocation}";
+        }
+
+        var response = await _httpClient.GetAsync(query);
+        response.EnsureSuccessStatusCode();
+
+        var result = await response.Content.ReadFromJsonAsync<StockBalanceResponse>();
+        return result?.StockBalance ?? 0;
+    }
+
+    public async Task<ArticleInfo?> ScanBarcodeAsync(string barcode)
+    {
+        var response = await _httpClient.GetAsync($"api/barcode/scan-barcode?barcode={barcode}");
+        response.EnsureSuccessStatusCode();
+
+        var result = await response.Content.ReadFromJsonAsync<BarcodeScanResponse>();
+        return result?.Article;
+    }
+
+    public class StockBalanceResponse
+    {
+        public int ArticleId { get; set; }
+        public string? StorageLocation { get; set; }
+        public int StockBalance { get; set; }
     }
 }

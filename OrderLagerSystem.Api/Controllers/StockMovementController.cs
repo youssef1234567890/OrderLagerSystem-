@@ -102,4 +102,25 @@ public class StockMovementController : ControllerBase
 
         return Ok(result);
     }
+
+    /// <summary>
+    /// Calculate stock balance for an article
+    /// </summary>
+    /// <param name="articleId">The ID of the article</param>
+    /// <param name="storageLocation">Optional storage location to filter the stock balance</param>
+    /// <returns>Stock balance information</returns>
+    [HttpGet("calculate-stock-balance")]
+    public async Task<IActionResult> CalculateStockBalance(int articleId, string? storageLocation = null)
+    {
+        try
+        {
+            var stockBalance = await _stockMovementService.CalculateStockBalanceAsync(articleId, storageLocation);
+            return Ok(new { ArticleId = articleId, StorageLocation = storageLocation, StockBalance = stockBalance });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error calculating stock balance for article {ArticleId}", articleId);
+            return StatusCode(500, new { Message = "An error occurred while calculating stock balance", Error = ex.Message });
+        }
+    }
 }

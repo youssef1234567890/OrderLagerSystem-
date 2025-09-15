@@ -53,6 +53,11 @@ public class StockMovement
     [MaxLength(GlobalRules.CommentMaxLen)]
     public string? Notes { get; set; }
 
+    /// <summary>
+    /// Lagerplacering
+    /// </summary>
+    public string? StorageLocation { get; set; }
+
     public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
 
     /// <summary>

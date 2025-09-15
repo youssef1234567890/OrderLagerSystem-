@@ -1,4 +1,5 @@
 using OrderLagerSystem.Api.DTOs;
+using OrderLagerSystem.Api.Data;
 using SkiaSharp;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
@@ -7,6 +8,7 @@ using ZXing.Common;
 using ZXing.Rendering;
 using ApiBarcodeFormat = OrderLagerSystem.Api.DTOs.BarcodeFormat;
 using ZXingBarcodeFormat = ZXing.BarcodeFormat;
+using Microsoft.EntityFrameworkCore;
 
 namespace OrderLagerSystem.Api.Services;
 
@@ -16,10 +18,12 @@ namespace OrderLagerSystem.Api.Services;
 public class BarcodeService : IBarcodeService
 {
     private readonly ILogger<BarcodeService> _logger;
+    private readonly ApplicationDbContext _context; // Anta att detta är din DbContext klass
 
-    public BarcodeService(ILogger<BarcodeService> logger)
+    public BarcodeService(ILogger<BarcodeService> logger, ApplicationDbContext context)
     {
         _logger = logger;
+        _context = context;
     }
 
     public async Task<BarcodeResponse> GenerateBarcodeAsync(BarcodeGenerateRequest request)
@@ -375,5 +379,48 @@ public class BarcodeService : IBarcodeService
         canvas.DrawText(text, width / 2f, textY, paint);
 
         return newBitmap;
+    }
+
+    // Added method to handle barcode scanning for storage location tracking
+    public async Task<BarcodeScanResponse> ScanBarcodeAsync(string barcode)
+    {
+        try
+        {
+            var article = await _context.Articles.FirstOrDefaultAsync(a => a.Barcode == barcode);
+
+            if (article == null)
+            {
+                return new BarcodeScanResponse
+                {
+                    Success = false,
+                    Message = "Article not found for the provided barcode",
+                    Errors = new List<string> { $"No article found with barcode: {barcode}" }
+                };
+            }
+
+            return new BarcodeScanResponse
+            {
+                Success = true,
+                Message = "Barcode scanned successfully",
+                Article = new ArticleInfo
+                {
+                    ArticleId = article.ArticleId,
+                    Sku = article.Sku,
+                    Name = article.Name,
+                    CurrentStock = article.StockQuantity,
+                    StorageLocation = article.StorageLocation
+                }
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error scanning barcode {Barcode}", barcode);
+            return new BarcodeScanResponse
+            {
+                Success = false,
+                Message = "An error occurred while scanning the barcode",
+                Errors = new List<string> { ex.Message }
+            };
+        }
     }
 }
