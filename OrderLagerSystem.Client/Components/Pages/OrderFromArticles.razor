@@ -1,0 +1,198 @@
+@page "/order-from-articles"
+@using OrderLagerSystem.Api.DTOs
+@using OrderLagerSystem.Client.Services
+@inject ArticleService ArticleService
+@inject OrderApiService OrderApi
+@inject ILogger<OrderFromArticles> Logger
+@rendermode InteractiveServer
+
+<PageTitle>Order from Articles</PageTitle>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h1>Order från artiklar</h1>
+            <p class="text-muted">Välj artiklar, ange antal och skapa en order. Lager uppdateras direkt efter beställning.</p>
+        </div>
+        <button class="btn btn-outline-secondary" @onclick="Reload" disabled="@isLoading">
+            @(isLoading ? "Laddar..." : "Uppdatera")
+        </button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(message))
+    {
+        <div class="alert @alertClass">@message</div>
+    }
+
+    @if (isLoading)
+    {
+        <div class="text-center my-5">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Laddar...</span>
+            </div>
+        </div>
+    }
+    else if (articles?.Any() == true)
+    {
+        <div class="table-responsive">
+            <table class="table table-striped align-middle">
+                <thead>
+                    <tr>
+                        <th>SKU</th>
+                        <th>Namn</th>
+                        <th class="text-end">Pris</th>
+                        <th class="text-end">Lager</th>
+                        <th style="width: 260px;">Beställ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var a in articles!)
+                    {
+                        <tr>
+                            <td>@a.Sku</td>
+                            <td>
+                                <div class="fw-semibold">@a.Name</div>
+                                @if (!string.IsNullOrWhiteSpace(a.Description))
+                                {
+                                    <div class="text-muted small">@a.Description</div>
+                                }
+                            </td>
+                            <td class="text-end">@a.Price.ToString("0.00") kr</td>
+                            <td class="text-end">@a.StockQuantity</td>
+                            <td>
+                                <div class="d-flex gap-2">
+                                    <input type="number"
+                                           class="form-control"
+                                           min="1"
+                                           max="@a.StockQuantity"
+                                           value="@GetQty(a.ArticleId)"
+                                           @oninput="(e => SetQty(a.ArticleId, e.Value?.ToString()))" />
+                                    <button class="btn btn-primary"
+                                            disabled="@(!CanOrder(a))"
+                                            @onclick="() => PlaceOrder(a)">
+                                        Beställ
+                                    </button>
+                                </div>
+                                @if (GetQty(a.ArticleId) > 0)
+                                {
+                                    var q = GetQty(a.ArticleId);
+                                    var remaining = a.StockQuantity - q;
+                                    <div class="small text-muted mt-1">
+                                        Efter beställning: @(remaining < 0 ? 0 : remaining)
+                                    </div>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="text-muted">Inga artiklar hittades.</div>
+    }
+</div>
+
+@code {
+    private List<ArticleDto>? articles;
+    private bool isLoading = true;
+    private string message = "";
+    private string alertClass = "alert-info";
+    private Dictionary<int, int> qty = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        isLoading = true;
+        message = "";
+        try
+        {
+            articles = await ArticleService.GetArticlesAsync(includeInactive: false) ?? new();
+            // nolla ogiltiga kvantiteter mot lagret
+            foreach (var a in articles)
+            {
+                if (!qty.ContainsKey(a.ArticleId)) qty[a.ArticleId] = 0;
+                if (qty[a.ArticleId] > a.StockQuantity) qty[a.ArticleId] = a.StockQuantity;
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load articles");
+            message = "Kunde inte ladda artiklar.";
+            alertClass = "alert-danger";
+            articles = new();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private Task Reload() => Load();
+
+    private int GetQty(int articleId) => qty.TryGetValue(articleId, out var v) ? v : 0;
+
+    private void SetQty(int articleId, string? val)
+    {
+        if (int.TryParse(val, out var n) && n >= 0)
+        {
+            qty[articleId] = n;
+            StateHasChanged();
+        }
+    }
+
+    private bool CanOrder(ArticleDto a)
+    {
+        var q = GetQty(a.ArticleId);
+        return q > 0 && q <= a.StockQuantity;
+    }
+
+    private async Task PlaceOrder(ArticleDto a)
+    {
+        try
+        {
+            var q = GetQty(a.ArticleId);
+            if (q <= 0 || q > a.StockQuantity) return;
+
+            var req = new OrderCreateRequest
+            {
+                ExternalOrderNo = null,
+                Notes = $"Order skapad från artikel-listan för SKU {a.Sku}",
+                Items = new List<OrderItemCreateRequest>
+                {
+                    new OrderItemCreateRequest
+                    {
+                        ArticleId = a.ArticleId,
+                        Quantity = q
+                    }
+                }
+            };
+
+            var res = await OrderApi.CreateOrderAsync(req);
+            if (res != null && res.OrderId > 0)
+            {
+                // optimistisk uppdatering av lager i UI
+                a.StockQuantity = Math.Max(0, a.StockQuantity - q);
+                qty[a.ArticleId] = 0;
+                message = $"Order {res.OrderId} skapad. Kvar i lager: {a.StockQuantity}.";
+                alertClass = "alert-success";
+            }
+            else
+            {
+                message = "Kunde inte skapa order.";
+                alertClass = "alert-danger";
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Create order failed for article {ArticleId}", a.ArticleId);
+            message = "Ett fel uppstod vid skapande av order.";
+            alertClass = "alert-danger";
+        }
+    }
+}
