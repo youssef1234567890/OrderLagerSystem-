@@ -64,7 +64,8 @@ public class OrderService : IOrderService
                 StockAfterMovement = article.StockQuantity - itemRequest.Quantity,
                 OrderId = null,
                 Reason = "Reserved for order",
-                CreatedUtc = DateTime.UtcNow
+                CreatedUtc = DateTime.UtcNow,
+                Notes = $"ORDER:{orderNumber}"
             };
 
             _context.StockMovements.Add(stockMovement);
@@ -122,14 +123,14 @@ public class OrderService : IOrderService
 
     public async Task<string> GenerateOrderNumberAsync()
     {
-        var year = DateTime.UtcNow.Year;
-        var lastOrder = await _context.Orders
-            .Where(o => o.CreatedUtc.Year == year)
-            .OrderByDescending(o => o.OrderId)
-            .FirstOrDefaultAsync();
+        var today = DateTime.Now.ToString("yyyyMMdd");
+        var prefix = $"PO-{today}-";
 
-        int sequence = lastOrder != null ? (lastOrder.OrderId % 1000) + 1 : 1;
-        return $"ORD-{year}-{sequence:D3}";
+        var todayOrdersCount = await _context.StockMovements
+            .CountAsync(sm => sm.Notes != null && sm.Notes.Contains($"ORDER:{prefix}"));
+
+        var nextNumber = todayOrdersCount + 1;
+        return $"{prefix}{nextNumber:D3}"; // e.g. PO-20241201-001
     }
 
     public async Task<DeliveryResponse?> CreateDeliveryAsync(DeliveryCreateRequest request, string userId)

@@ -2,6 +2,8 @@
 @using OrderLagerSystem.Client.Services
 @inject OrderApiService OrderApi
 @inject ILogger<OrderHistory> Logger
+@inject OrderLagerSystem.Client.Services.AuthService AuthService
+@inject NavigationManager Navigation
 @rendermode InteractiveServer
 
 <PageTitle>Orderhistorik</PageTitle>
@@ -38,7 +40,7 @@
             <table class="table table-striped align-middle">
                 <thead>
                     <tr>
-                        <th>Order ID</th>
+                        <th>Order number</th>
                         <th>Tid</th>
                         <th>Från</th>
                         <th>Till</th>
@@ -50,7 +52,7 @@
                     @foreach (var h in entries!)
                     {
                         <tr class="@RowClass(h.NewStatus)">
-                            <td>@h.OrderId</td>
+                            <td>@(string.IsNullOrWhiteSpace(h.ExternalOrderNo) ? h.OrderId.ToString() : h.ExternalOrderNo)</td>
                             <td>@h.ChangedUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
                             <td>@(string.IsNullOrWhiteSpace(h.OldStatus) ? "-" : h.OldStatus)</td>
                             <td>@h.NewStatus</td>
@@ -77,6 +79,18 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // Access control: only Admin and Orderkoordinator
+        if (!AuthService.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+        var roles = AuthService.CurrentUser?.Roles ?? new List<string>();
+        if (!roles.Contains("Admin") && !roles.Contains("Orderkoordinator"))
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
         await Load();
     }
 

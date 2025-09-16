@@ -4,6 +4,8 @@
 @inject ArticleService ArticleService
 @inject OrderApiService OrderApi
 @inject ILogger<OrderFromArticles> Logger
+@inject OrderLagerSystem.Client.Services.AuthService AuthService
+@inject NavigationManager Navigation
 @rendermode InteractiveServer
 
 <PageTitle>Order from Articles</PageTitle>
@@ -103,6 +105,18 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // Access control: only Admin and Orderkoordinator
+        if (!AuthService.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+        var roles = AuthService.CurrentUser?.Roles ?? new List<string>();
+        if (!roles.Contains("Admin") && !roles.Contains("Orderkoordinator"))
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
         await Load();
     }
 

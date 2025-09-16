@@ -4,6 +4,7 @@ public class OrderHistoryDto
 {
     public int OrderHistoryId { get; set; }
     public int OrderId { get; set; }
+    public string? ExternalOrderNo { get; set; }
     public string? ChangedByUserId { get; set; }
     public string? OldStatus { get; set; }
     public string NewStatus { get; set; } = null!;

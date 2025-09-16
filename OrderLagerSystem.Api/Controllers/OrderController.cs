@@ -129,16 +129,21 @@ public class OrderController : ControllerBase
 
         var list = await q
             .OrderByDescending(h => h.ChangedUtc)
-            .Select(h => new OrderHistoryDto
-            {
-                OrderHistoryId = h.OrderHistoryId,
-                OrderId = h.OrderId,
-                ChangedByUserId = h.ChangedByUserId,
-                OldStatus = h.OldStatus,
-                NewStatus = h.NewStatus,
-                Comment = h.Comment,
-                ChangedUtc = h.ChangedUtc
-            }).ToListAsync();
+            .Join(_db.Orders,
+                h => h.OrderId,
+                o => o.OrderId,
+                (h, o) => new OrderHistoryDto
+                {
+                    OrderHistoryId = h.OrderHistoryId,
+                    OrderId = h.OrderId,
+                    ExternalOrderNo = o.ExternalOrderNo,
+                    ChangedByUserId = h.ChangedByUserId,
+                    OldStatus = h.OldStatus,
+                    NewStatus = h.NewStatus,
+                    Comment = h.Comment,
+                    ChangedUtc = h.ChangedUtc
+                })
+            .ToListAsync();
 
         return Ok(list);
     }
@@ -150,16 +155,21 @@ public class OrderController : ControllerBase
         var list = await _db.OrderHistories
             .Where(h => h.OrderId == orderId)
             .OrderByDescending(h => h.ChangedUtc)
-            .Select(h => new OrderHistoryDto
-            {
-                OrderHistoryId = h.OrderHistoryId,
-                OrderId = h.OrderId,
-                ChangedByUserId = h.ChangedByUserId,
-                OldStatus = h.OldStatus,
-                NewStatus = h.NewStatus,
-                Comment = h.Comment,
-                ChangedUtc = h.ChangedUtc
-            }).ToListAsync();
+            .Join(_db.Orders,
+                h => h.OrderId,
+                o => o.OrderId,
+                (h, o) => new OrderHistoryDto
+                {
+                    OrderHistoryId = h.OrderHistoryId,
+                    OrderId = h.OrderId,
+                    ExternalOrderNo = o.ExternalOrderNo,
+                    ChangedByUserId = h.ChangedByUserId,
+                    OldStatus = h.OldStatus,
+                    NewStatus = h.NewStatus,
+                    Comment = h.Comment,
+                    ChangedUtc = h.ChangedUtc
+                })
+            .ToListAsync();
 
         return Ok(list);
     }
@@ -185,16 +195,4 @@ public class OrderController : ControllerBase
             return StatusCode(500, "An error occurred while creating the delivery.");
         }
     }
-}
-
-// Local DTO mirror (client has the same shape)
-public class OrderHistoryDto
-{
-    public int OrderHistoryId { get; set; }
-    public int OrderId { get; set; }
-    public string? ChangedByUserId { get; set; }
-    public string? OldStatus { get; set; }
-    public string NewStatus { get; set; } = null!;
-    public string? Comment { get; set; }
-    public DateTime ChangedUtc { get; set; }
 }
