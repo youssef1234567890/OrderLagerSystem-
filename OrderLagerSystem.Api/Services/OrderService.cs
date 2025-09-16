@@ -64,38 +64,46 @@ public class OrderService : IOrderService
                 StockAfterMovement = article.StockQuantity - itemRequest.Quantity,
                 OrderId = null,
                 Reason = "Reserved for order",
-                CreatedUtc = DateTime.UtcNow
+                CreatedUtc = DateTime.UtcNow,
+                Notes = $"ORDER:{orderNumber}"
             };
 
             _context.StockMovements.Add(stockMovement);
             article.StockQuantity -= itemRequest.Quantity;
         }
+        _context.Orders.Add(order);
 
+        // SPARA FÖRST så order får ett riktigt OrderId
+        await _context.SaveChangesAsync();
+
+        // Länka tidigare skapade reservationer till denna order
+        foreach (var movement in _context.StockMovements.Where(m => m.OrderId == null && m.UserId == userId && m.MovementType == StockMovement.MovementTypes.Reserved))
+        {
+            movement.OrderId = order.OrderId;
+        }
+        await _context.SaveChangesAsync();
+
+        // Lägg till historik EFTER att order finns (undvik FK-fel)
         var history = new OrderHistory
         {
-            OrderId = 0,
+            OrderId = order.OrderId,
             ChangedByUserId = userId,
             NewStatus = GlobalRules.OrderStatus.Created,
             Comment = "Order created",
             ChangedUtc = DateTime.UtcNow
         };
-
-        _context.Orders.Add(order);
         _context.OrderHistories.Add(history);
-
-        await _context.SaveChangesAsync();
-
-        history.OrderId = order.OrderId;
-        foreach (var movement in _context.StockMovements.Where(m => m.OrderId == null && m.UserId == userId && m.MovementType == StockMovement.MovementTypes.Reserved))
-        {
-            movement.OrderId = order.OrderId;
-        }
-
         await _context.SaveChangesAsync();
 
         _logger.LogInformation("Order {OrderId} created by user {UserId}", order.OrderId, userId);
 
-        return MapToOrderResponse(order);
+        // Ladda navigationer innan mapping
+        var fullOrder = await _context.Orders
+            .Include(o => o.Items)
+            .ThenInclude(i => i.Article)
+            .FirstOrDefaultAsync(o => o.OrderId == order.OrderId);
+
+        return MapToOrderResponse(fullOrder!);
     }
 
     public async Task<bool> ValidateStockAvailabilityAsync(List<OrderItemCreateRequest> items)
@@ -115,14 +123,14 @@ public class OrderService : IOrderService
 
     public async Task<string> GenerateOrderNumberAsync()
     {
-        var year = DateTime.UtcNow.Year;
-        var lastOrder = await _context.Orders
-            .Where(o => o.CreatedUtc.Year == year)
-            .OrderByDescending(o => o.OrderId)
-            .FirstOrDefaultAsync();
+        var today = DateTime.Now.ToString("yyyyMMdd");
+        var prefix = $"PO-{today}-";
 
-        int sequence = lastOrder != null ? (lastOrder.OrderId % 1000) + 1 : 1;
-        return $"ORD-{year}-{sequence:D3}";
+        var todayOrdersCount = await _context.StockMovements
+            .CountAsync(sm => sm.Notes != null && sm.Notes.Contains($"ORDER:{prefix}"));
+
+        var nextNumber = todayOrdersCount + 1;
+        return $"{prefix}{nextNumber:D3}"; // e.g. PO-20241201-001
     }
 
     public async Task<DeliveryResponse?> CreateDeliveryAsync(DeliveryCreateRequest request, string userId)

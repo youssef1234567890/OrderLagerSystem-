@@ -14,7 +14,7 @@ builder.Services.AddScoped<StockMovementApiService>();
 // Registrera services för artikel-operationer och sträckoder
 builder.Services.AddScoped<ArticleService>();
 builder.Services.AddScoped<BarcodeService>();
-
+builder.Services.AddScoped<OrderApiService>();
 // Konfigurera HttpClient för API-kommunikation
 builder.Services.AddHttpClient("OrderLagerSystemApi", client =>
 {
