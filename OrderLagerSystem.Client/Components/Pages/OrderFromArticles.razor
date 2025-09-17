@@ -17,7 +17,7 @@
             <p class="text-muted">Välj artiklar, ange antal och skapa en order. Lager uppdateras direkt efter beställning.</p>
         </div>
         <div class="d-flex gap-2">
-            <button class="btn btn-primary" @onclick="PlaceBatchOrder" disabled="@(!CanPlaceBatch || isLoading)">Skapa order av valda</button>
+            <button class="btn btn-primary" @onclick="PlaceBatchOrder" disabled="@(!CanPlaceBatch || isLoading)">Skapa separata order</button>
             <button class="btn btn-outline-secondary" @onclick="Reload" disabled="@isLoading">
             @(isLoading ? "Laddar..." : "Uppdatera")
             </button>
@@ -220,45 +220,63 @@
         try
         {
             if (articles == null) return;
-            var items = new List<OrderItemCreateRequest>();
+            var selectedArticles = new List<(ArticleDto article, int quantity)>();
+            
             foreach (var a in articles)
             {
                 var q = GetQty(a.ArticleId);
                 if (q > 0 && q <= a.StockQuantity)
                 {
-                    items.Add(new OrderItemCreateRequest { ArticleId = a.ArticleId, Quantity = q });
+                    selectedArticles.Add((a, q));
                 }
             }
-            if (items.Count == 0) return;
+            
+            if (selectedArticles.Count == 0) return;
 
-            var req = new OrderCreateRequest
-            {
-                ExternalOrderNo = null,
-                Notes = "Batch order skapad från artikel-listan",
-                Items = items
-            };
+            var successCount = 0;
+            var createdOrders = new List<int>();
 
-            var res = await OrderApi.CreateOrderAsync(req);
-            if (res != null && res.OrderId > 0)
+            foreach (var (article, quantity) in selectedArticles)
             {
-                foreach (var it in items)
+                var req = new OrderCreateRequest
                 {
-                    var a = articles.First(x => x.ArticleId == it.ArticleId);
-                    a.StockQuantity = Math.Max(0, a.StockQuantity - it.Quantity);
-                    qty[it.ArticleId] = 0;
+                    ExternalOrderNo = null,
+                    Notes = $"Order skapad från artikel-listan för SKU {article.Sku}",
+                    Items = new List<OrderItemCreateRequest>
+                    {
+                        new OrderItemCreateRequest
+                        {
+                            ArticleId = article.ArticleId,
+                            Quantity = quantity
+                        }
+                    }
+                };
+
+                var res = await OrderApi.CreateOrderAsync(req);
+                if (res != null && res.OrderId > 0)
+                {
+                    // Update UI optimistically
+                    article.StockQuantity = Math.Max(0, article.StockQuantity - quantity);
+                    qty[article.ArticleId] = 0;
+                    successCount++;
+                    createdOrders.Add(res.OrderId);
                 }
-                message = $"Order {res.OrderId} skapad för {items.Count} valda artiklar.";
+            }
+
+            if (successCount > 0)
+            {
+                message = $"Skapade {successCount} separata order: {string.Join(", ", createdOrders)}";
                 alertClass = "alert-success";
             }
             else
             {
-                message = "Kunde inte skapa order.";
+                message = "Kunde inte skapa några order.";
                 alertClass = "alert-danger";
             }
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Batch create order failed");
+            Logger.LogError(ex, "Batch create separate orders failed");
             message = "Ett fel uppstod vid skapande av order.";
             alertClass = "alert-danger";
         }

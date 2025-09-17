@@ -120,6 +120,33 @@ public class OrderController : ControllerBase
         });
     }
 
+    // GET: api/order/current-status
+    [HttpGet("current-status")]
+    public async Task<ActionResult<List<OrderHistoryDto>>> GetCurrentStatuses([FromQuery] int? orderId = null)
+    {
+        var q = _db.Orders.Include(o => o.Items).AsQueryable();
+        if (orderId.HasValue) q = q.Where(o => o.OrderId == orderId.Value);
+
+        var list = await q
+            .OrderByDescending(o => o.CreatedUtc)
+            .Select(o => new OrderHistoryDto
+            {
+                OrderHistoryId = 0, // Not a history record
+                OrderId = o.OrderId,
+                ExternalOrderNo = o.ExternalOrderNo,
+                ChangedByUserId = o.UserId,
+                OldStatus = null,
+                NewStatus = o.Status,
+                Comment = "Current status",
+                ChangedUtc = o.CreatedUtc,
+                TotalPrice = o.TotalPrice,
+                TotalQuantity = o.TotalQuantity
+            })
+            .ToListAsync();
+
+        return Ok(list);
+    }
+
     // GET: api/order/history
     [HttpGet("history")]
     public async Task<ActionResult<List<OrderHistoryDto>>> GetHistory([FromQuery] int? orderId = null)
@@ -262,6 +289,73 @@ public class OrderController : ControllerBase
         {
             _logger.LogError(ex, "Error creating delivery for order {OrderId}", orderId);
             return StatusCode(500, "An error occurred while creating the delivery.");
+        }
+    }
+
+    // POST: api/order/{orderId}/status
+    [HttpPost("{orderId:int}/status")]
+    [Authorize(Roles = $"{GlobalRules.Roles.Admin},{GlobalRules.Roles.Orderkoordinator}")]
+    public async Task<ActionResult<OrderResponse>> UpdateStatus(int orderId, [FromBody] OrderStatusUpdateRequest request)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+        var allowed = new[] { GlobalRules.OrderStatus.Created, GlobalRules.OrderStatus.Confirmed, GlobalRules.OrderStatus.Processing };
+        if (string.IsNullOrWhiteSpace(request.NewStatus) || !allowed.Contains(request.NewStatus))
+            return BadRequest(new { message = "Invalid status. Allowed: Created, Confirmed, Processing." });
+
+        try
+        {
+            var userId = GetUserId();
+            var order = await _db.Orders
+                .Include(o => o.Items).ThenInclude(i => i.Article)
+                .FirstOrDefaultAsync(o => o.OrderId == orderId);
+            if (order == null) return NotFound();
+
+            var oldStatus = order.Status;
+            if (oldStatus == request.NewStatus)
+            {
+                // No change
+            }
+            else
+            {
+                order.Status = request.NewStatus;
+                _db.OrderHistories.Add(new OrderHistory
+                {
+                    OrderId = order.OrderId,
+                    ChangedByUserId = userId,
+                    OldStatus = oldStatus,
+                    NewStatus = order.Status,
+                    Comment = string.IsNullOrWhiteSpace(request.Comment) ? "Status updated" : request.Comment,
+                    ChangedUtc = DateTime.UtcNow
+                });
+            }
+
+            await _db.SaveChangesAsync();
+
+            return Ok(new OrderResponse
+            {
+                OrderId = order.OrderId,
+                UserId = order.UserId,
+                ExternalOrderNo = order.ExternalOrderNo,
+                Status = order.Status,
+                Notes = order.Notes,
+                TotalPrice = order.TotalPrice,
+                TotalQuantity = order.TotalQuantity,
+                CreatedUtc = order.CreatedUtc,
+                Items = order.Items.Select(i => new OrderItemResponse
+                {
+                    OrderItemId = i.OrderItemId,
+                    ArticleId = i.ArticleId,
+                    ArticleName = i.Article.Name,
+                    Quantity = i.Quantity,
+                    UnitPrice = i.UnitPrice,
+                    TotalPrice = i.TotalPrice
+                }).ToList()
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating order status for {OrderId}", orderId);
+            return StatusCode(500, "An error occurred while updating status.");
         }
     }
 }
