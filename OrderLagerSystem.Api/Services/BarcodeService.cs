@@ -7,6 +7,12 @@ using ZXing.Common;
 using ZXing.Rendering;
 using ApiBarcodeFormat = OrderLagerSystem.Api.DTOs.BarcodeFormat;
 using ZXingBarcodeFormat = ZXing.BarcodeFormat;
+using Microsoft.AspNetCore.Http;
+using OrderLagerSystem.Api.Data;
+using Microsoft.EntityFrameworkCore;
+using OrderLagerSystem.Api.Models;   
+using ZXing.SkiaSharp;
+
 
 namespace OrderLagerSystem.Api.Services;
 
@@ -16,17 +22,21 @@ namespace OrderLagerSystem.Api.Services;
 public class BarcodeService : IBarcodeService
 {
     private readonly ILogger<BarcodeService> _logger;
+    private readonly ApplicationDbContext _context; // För lagerkoppling
+    private readonly IStockMovementService _stockMovementService; // För lagerförflyttning
 
-    public BarcodeService(ILogger<BarcodeService> logger)
+    public BarcodeService(ILogger<BarcodeService> logger, ApplicationDbContext context, IStockMovementService stockMovementService)
     {
         _logger = logger;
+        _context = context; 
+        _stockMovementService = stockMovementService; 
     }
 
     public async Task<BarcodeResponse> GenerateBarcodeAsync(BarcodeGenerateRequest request)
     {
         try
         {
-            _logger.LogInformation("Generating barcode for text: {Text} with format: {Format}", 
+            _logger.LogInformation("Generating barcode for text: {Text} with format: {Format}",
                 request.Text, request.Format);
 
             // Förbättrad validering med tydliga felmeddelanden
@@ -39,7 +49,7 @@ public class BarcodeService : IBarcodeService
 
             // Normalisera texten automatiskt
             var normalizedText = NormalizeTextForBarcode(request.Text, request.Format);
-            
+
             // Varna om format inte är optimalt
             var recommendedFormat = GetRecommendedFormat(request.Text);
             if (recommendedFormat != request.Format)
@@ -62,18 +72,18 @@ public class BarcodeService : IBarcodeService
                     Margin = request.Margin
                 }
             };
-            
+
             // Generera pixel data med normaliserad text
             var pixelData = writer.Write(normalizedText);
-            
+
             // Konvertera pixel data till SKBitmap
             using var bitmap = CreateBitmapFromPixelData(pixelData);
-            
+
             // Lägg till text om det begärs (endast för 1D streckkoder)
-            using var finalBitmap = request.ShowText && IsOneDimensional(request.Format) 
+            using var finalBitmap = request.ShowText && IsOneDimensional(request.Format)
                 ? AddTextToBitmap(bitmap, normalizedText, request.Width, request.Height)
                 : bitmap.Copy();
-                
+
             // Konvertera till PNG bytes
             using var image = SKImage.FromBitmap(finalBitmap);
             using var data = image.Encode(SKEncodedImageFormat.Png, 100);
@@ -233,7 +243,7 @@ public class BarcodeService : IBarcodeService
     private ValidationResult ValidateEAN13(string text)
     {
         var digits = ExtractDigits(text);
-        
+
         if (digits.Length == 0)
             return new ValidationResult(false, "EAN13 kräver numeriska tecken");
 
@@ -264,23 +274,23 @@ public class BarcodeService : IBarcodeService
     // Enkla valideringsmetoder för IsValidForFormat
 
     private bool IsValidCode128(string text) => text.All(c => c < 128);
-    
-    private bool IsValidCode39(string text) => 
+
+    private bool IsValidCode39(string text) =>
         Regex.IsMatch(text.ToUpper(), @"^[A-Z0-9\-\.\$\/\+%\s]*$");
-    
+
     private bool IsValidEAN13(string text)
     {
         var digits = ExtractDigits(text);
-        return digits.Length >= 12 && digits.Length <= 13 && 
+        return digits.Length >= 12 && digits.Length <= 13 &&
                (digits.Length == 12 || IsValidEAN13Checksum(digits));
     }
-    
+
     private bool IsValidQRCode(string text) => text.Length <= 4000;
 
     /// <summary>
     /// Extraherar endast siffror från en text
     /// </summary>
-    private string ExtractDigits(string text) => 
+    private string ExtractDigits(string text) =>
         new string(text.Where(char.IsDigit).ToArray());
 
     /// <summary>
@@ -305,7 +315,7 @@ public class BarcodeService : IBarcodeService
 
     private bool ContainsLowercase(string text) => text.Any(char.IsLower);
 
-    private bool ContainsSpecialCharacters(string text) => 
+    private bool ContainsSpecialCharacters(string text) =>
         text.Any(c => !char.IsLetterOrDigit(c) && !char.IsWhiteSpace(c) && c != '-' && c != '_');
 
     private static ZXingBarcodeFormat ConvertToZXingFormat(ApiBarcodeFormat format)
@@ -337,11 +347,11 @@ public class BarcodeService : IBarcodeService
         var width = pixelData.Width;
         var height = pixelData.Height;
         var bitmap = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
-        
+
         // Kopiera pixel data till SKBitmap
         var pixels = bitmap.GetPixels();
         Marshal.Copy(pixelData.Pixels, 0, pixels, pixelData.Pixels.Length);
-        
+
         return bitmap;
     }
 
@@ -353,7 +363,7 @@ public class BarcodeService : IBarcodeService
         var newBitmap = new SKBitmap(width, newHeight);
 
         using var canvas = new SKCanvas(newBitmap);
-        
+
         // Fyll bakgrund med vitt
         canvas.Clear(SKColors.White);
 
@@ -375,5 +385,49 @@ public class BarcodeService : IBarcodeService
         canvas.DrawText(text, width / 2f, textY, paint);
 
         return newBitmap;
+    }
+    public async Task<string?> DecodeBarcodeAsync(IFormFile image)
+    {
+        if (image == null || image.Length == 0)
+            return null;
+
+        await using var stream = image.OpenReadStream();
+        using var bitmap = SKBitmap.Decode(stream);
+        if (bitmap == null)
+            return null;
+
+        var reader = new ZXing.SkiaSharp.BarcodeReader();
+        var result = reader.Decode(bitmap);
+
+        return result?.Text;
+    }
+
+    public async Task<bool> MoveStockByBarcodeAsync(string barcode, int quantity, string userId) //Lagerförflyttning via streckkod
+    {
+        // Exempel: barcode = SKU eller ArticleId
+        Article? article = null;
+        if (int.TryParse(barcode, out var articleId))
+            article = await _context.Articles.FindAsync(articleId);
+        if (article == null)
+            article = await _context.Articles.FirstOrDefaultAsync(a => a.Sku == barcode);
+
+        if (article == null) return false;
+
+        // Skapa lagerförflyttning (t.ex. inleverans)
+        var movement = new StockMovement
+        {
+            ArticleId = article.ArticleId,
+            MovementType = StockMovement.MovementTypes.Incoming,
+            Quantity = quantity,
+            StockAfterMovement = article.StockQuantity + quantity,
+            UserId = userId,
+            CreatedUtc = DateTime.UtcNow,
+            Reason = "Via barcode scan"
+        };
+
+        _context.StockMovements.Add(movement);
+        article.StockQuantity += quantity;
+        await _context.SaveChangesAsync();
+        return true;
     }
 }

@@ -19,7 +19,7 @@ public class BarcodeController : ControllerBase
     private readonly ILogger<BarcodeController> _logger;
 
     public BarcodeController(
-        IBarcodeService barcodeService, 
+        IBarcodeService barcodeService,
         ApplicationDbContext context,
         ILogger<BarcodeController> logger)
     {
@@ -38,7 +38,7 @@ public class BarcodeController : ControllerBase
     {
         if (!ModelState.IsValid)
         {
-            _logger.LogWarning("Invalid barcode generation request: {Errors}", 
+            _logger.LogWarning("Invalid barcode generation request: {Errors}",
                 string.Join(", ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage)));
             return BadRequest(ModelState);
         }
@@ -47,8 +47,8 @@ public class BarcodeController : ControllerBase
         {
             var response = await _barcodeService.GenerateBarcodeAsync(request);
 
-            _logger.LogInformation("User {UserId} generated barcode for text: {Text}", 
-                User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, 
+            _logger.LogInformation("User {UserId} generated barcode for text: {Text}",
+                User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
                 request.Text);
 
             return Ok(response);
@@ -95,7 +95,7 @@ public class BarcodeController : ControllerBase
             // Endast aktiva artiklar för icke-admin användare
             if (!article.IsActive && !User.IsInRole(GlobalRules.Roles.Admin))
             {
-                _logger.LogWarning("Non-admin user {UserId} tried to generate barcode for inactive article {ArticleId}", 
+                _logger.LogWarning("Non-admin user {UserId} tried to generate barcode for inactive article {ArticleId}",
                     User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, articleId);
                 return NotFound($"Artikel med ID {articleId} hittades inte");
             }
@@ -112,8 +112,8 @@ public class BarcodeController : ControllerBase
 
             var response = await _barcodeService.GenerateBarcodeAsync(request);
 
-            _logger.LogInformation("User {UserId} generated barcode for article {ArticleId} (SKU: {Sku})", 
-                User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, 
+            _logger.LogInformation("User {UserId} generated barcode for article {ArticleId} (SKU: {Sku})",
+                User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
                 articleId, article.Sku);
 
             return Ok(response);
@@ -163,7 +163,7 @@ public class BarcodeController : ControllerBase
             // Endast aktiva artiklar för icke-admin användare
             if (!article.IsActive && !User.IsInRole(GlobalRules.Roles.Admin))
             {
-                _logger.LogWarning("Non-admin user {UserId} tried to generate barcode for inactive article SKU {Sku}", 
+                _logger.LogWarning("Non-admin user {UserId} tried to generate barcode for inactive article SKU {Sku}",
                     User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, sku);
                 return NotFound($"Artikel med SKU {sku} hittades inte");
             }
@@ -180,7 +180,7 @@ public class BarcodeController : ControllerBase
 
             var response = await _barcodeService.GenerateBarcodeAsync(request);
 
-            _logger.LogInformation("User {UserId} generated barcode for article SKU: {Sku}", 
+            _logger.LogInformation("User {UserId} generated barcode for article SKU: {Sku}",
                 User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, sku);
 
             return Ok(response);
@@ -217,7 +217,7 @@ public class BarcodeController : ControllerBase
         try
         {
             var result = await GenerateArticleBarcode(articleId, format, width, height, showText);
-            
+
             if (result.Result is OkObjectResult okResult && okResult.Value is BarcodeResponse response)
             {
                 var imageBytes = Convert.FromBase64String(response.ImageBase64);
@@ -265,8 +265,8 @@ public class BarcodeController : ControllerBase
                 format = format.ToString(),
                 isValid = isValid,
                 recommendedFormat = recommended.ToString(),
-                message = isValid 
-                    ? $"Text är giltig för {format}" 
+                message = isValid
+                    ? $"Text är giltig för {format}"
                     : $"Text är inte giltig för {format}. Rekommenderar {recommended}"
             });
         }
@@ -358,7 +358,7 @@ public class BarcodeController : ControllerBase
                 isValid = validationResult.IsValid,
                 message = validationResult.Message,
                 recommendedFormat = recommended.ToString(),
-                recommendation = recommended != format 
+                recommendation = recommended != format
                     ? $"Rekommenderar {recommended} för bättre kompatibilitet"
                     : "Valt format är optimalt"
             });
@@ -369,4 +369,36 @@ public class BarcodeController : ControllerBase
             return StatusCode(500, "Ett fel inträffade vid validering");
         }
     }
+     [HttpPost("scan")] //  Tolka (skanna) streckkod från bild
+    public async Task<IActionResult> ScanBarcode([FromForm] IFormFile image)
+    {
+        if (image == null || image.Length == 0)
+            return BadRequest("Ingen bild bifogad.");
+
+        var result = await _barcodeService.DecodeBarcodeAsync(image);
+        if (string.IsNullOrEmpty(result))
+            return NotFound("Ingen streckkod kunde tolkas.");
+
+        return Ok(new { barcode = result });
+    }
+    [HttpPost("scan-move")] // Lagerförflyttning via streckkod och kvantitet
+    public async Task<IActionResult> ScanAndMove([FromBody] ScanMoveRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Barcode) || request.Quantity == 0)
+            return BadRequest("Barcode och quantity krävs.");
+
+        // Exempel: användar-id från claims
+        var userId = User.Identity?.Name ?? "unknown";
+
+        var success = await _barcodeService.MoveStockByBarcodeAsync(request.Barcode, request.Quantity, userId);
+        if (!success)
+            return NotFound("Artikel hittades inte för given streckkod.");
+
+        return Ok(new { message = "Lagerförflyttning skapad." });
+    }
+    public class ScanMoveRequest // DTO för lagerförflyttning via streckkod
+{
+    public string Barcode { get; set; } = null!;
+    public int Quantity { get; set; }
+}
 }

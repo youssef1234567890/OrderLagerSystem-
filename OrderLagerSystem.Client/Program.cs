@@ -15,6 +15,7 @@ builder.Services.AddScoped<StockMovementApiService>();
 builder.Services.AddScoped<ArticleService>();
 builder.Services.AddScoped<BarcodeService>();
 builder.Services.AddScoped<OrderApiService>();
+builder.Services.AddScoped<InventoryService>();
 // Konfigurera HttpClient för API-kommunikation
 builder.Services.AddHttpClient("OrderLagerSystemApi", client =>
 {
