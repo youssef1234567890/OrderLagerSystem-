@@ -1,0 +1,356 @@
+@page "/user-management"
+@inject UserService UserService
+@inject AuthService AuthService
+@inject ILogger<UserManagement> Logger
+@rendermode InteractiveServer
+
+<PageTitle>User Management</PageTitle>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>Användarhantering</h2>
+                <div>
+                    <button class="btn btn-success" @onclick="CreateNewUser">
+                        <i class="bi bi-person-plus"></i> Ny användare
+                    </button>
+                </div>
+            </div>
+
+            @if (!AuthService.IsAuthenticated)
+            {
+                <div class="alert alert-warning">
+                    <h4>Autentisering krävs</h4>
+                    <p>Du måste vara inloggad för att komma åt användarhantering.</p>
+                    <a href="/login" class="btn btn-primary">Logga in</a>
+                </div>
+            }
+            else if (!IsAdmin)
+            {
+                <div class="alert alert-danger">
+                    <h4>Åtkomst nekad</h4>
+                    <p>Endast administratörer kan komma åt användarhantering.</p>
+                </div>
+            }
+            else
+            {
+                @if (isLoading)
+                {
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Laddar...</span>
+                        </div>
+                        <p>Laddar användare...</p>
+                    </div>
+                }
+                else if (errorMessage != null)
+                {
+                    <div class="alert alert-danger">
+                        <h4>Error</h4>
+                        <p>@errorMessage</p>
+                        <button class="btn btn-outline-danger" @onclick="RefreshUsers">Försök igen</button>
+                    </div>
+                }
+                else
+                {
+                    <UserListComponent 
+                        Users="users" 
+                        OnUserEdit="HandleUserEdit"
+                        OnUserStatusToggle="HandleUserStatusToggle"
+                        OnUserPasswordUpdate="HandleUserPasswordUpdate"
+                        OnUserDelete="HandleUserDelete"
+                        OnRefresh="RefreshUsers" />
+                }
+            }
+        </div>
+    </div>
+</div>
+
+<!-- User Edit Modal -->
+<UserEditForm 
+    IsVisible="showEditModal" 
+    User="selectedUser" 
+    OnClose="CloseEditModal" 
+    OnUserSaved="HandleUserSaved" />
+
+<!-- Password Update Modal -->
+<PasswordUpdateModal 
+    IsVisible="showPasswordModal" 
+    User="selectedUser" 
+    OnClose="ClosePasswordModal" 
+    OnPasswordUpdated="HandlePasswordUpdated" />
+
+<!-- Delete Confirmation Modal -->
+@if (showDeleteModal)
+{
+    <div class="modal fade show" style="display: block; background-color: rgba(0,0,0,0.5);" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        Bekräfta borttagning av användare
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseDeleteModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning d-flex align-items-center" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-3 fs-4"></i>
+                        <div>
+                            <strong>Varning!</strong> Denna åtgärd kan inte ångras.
+                        </div>
+                    </div>
+                    <p class="mb-3">Är du säker på att du vill permanent ta bort följande användare?</p>
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <h6 class="card-title">
+                                <i class="bi bi-person-circle me-2"></i>
+                                @selectedUserForDelete?.FullName
+                            </h6>
+                            <p class="card-text mb-1">
+                                <strong>E-post:</strong> @selectedUserForDelete?.Email
+                            </p>
+                            <p class="card-text mb-1">
+                                <strong>Roller:</strong> @string.Join(", ", selectedUserForDelete?.Roles ?? new List<string>())
+                            </p>
+                            <p class="card-text">
+                                <strong>Status:</strong> 
+                                <span class="badge @(selectedUserForDelete?.IsActive == true ? "bg-success" : "bg-secondary")">
+                                    @(selectedUserForDelete?.IsActive == true ? "Aktiv" : "Inaktiv")
+                                </span>
+                            </p>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Detta kommer permanent ta bort all användardata och kan inte återställas.
+                        </small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseDeleteModal">
+                        <i class="bi bi-x-circle me-1"></i>
+                        Avbryt
+                    </button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmDeleteUser">
+                        <i class="bi bi-trash-fill me-1"></i>
+                        Ta bort användare
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<UserInfo> users = new();
+    private bool isLoading = true;
+    private string? errorMessage;
+    private bool showEditModal = false;
+    private bool showPasswordModal = false;
+    private bool showDeleteModal = false;
+    private UserInfo? selectedUser;
+    private UserInfo? selectedUserForDelete;
+
+    private bool IsAdmin => AuthService.CurrentUser?.Roles?.Contains("Admin") == true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUsers();
+    }
+
+    private async Task LoadUsers()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+            StateHasChanged();
+
+            var result = await UserService.GetAllUsersAsync();
+            if (result != null)
+            {
+                users = result;
+            }
+            else
+            {
+                errorMessage = "Misslyckades att ladda användare. Kontrollera din anslutning och försök igen.";
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading users");
+            errorMessage = "Ett oväntat fel uppstod vid laddning av användare.";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RefreshUsers()
+    {
+        await LoadUsers();
+    }
+
+    private Task HandleUserEdit(UserInfo user)
+    {
+        selectedUser = user;
+        showEditModal = true;
+        StateHasChanged();
+        Logger.LogInformation("Edit user requested for: {UserName}", user.UserName);
+        return Task.CompletedTask;
+    }
+
+    private async Task HandleUserStatusToggle(UserInfo user)
+    {
+        try
+        {
+            var success = await UserService.ToggleUserStatusAsync(user.Id);
+            if (success)
+            {
+                // Refresh the user list to show updated status
+                await LoadUsers();
+            }
+            else
+            {
+                errorMessage = $"Misslyckades att uppdatera status för användare {user.UserName}";
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error toggling user status for {UserId}", user.Id);
+            errorMessage = "Ett fel uppstod vid uppdatering av användarstatus.";
+            StateHasChanged();
+        }
+    }
+
+    private Task CreateNewUser()
+    {
+        selectedUser = null; // null means create new user
+        showEditModal = true;
+        StateHasChanged();
+        Logger.LogInformation("Create new user requested");
+        return Task.CompletedTask;
+    }
+
+    private Task CloseEditModal()
+    {
+        showEditModal = false;
+        selectedUser = null;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private async Task HandleUserSaved(UserInfo user)
+    {
+        try
+        {
+            if (selectedUser != null) // Edit mode
+            {
+                // Get the updated data from the form
+                var updatedUser = await UserService.GetUserByIdAsync(user.Id);
+                if (updatedUser != null)
+                {
+                    // Update the user in our local list
+                    var index = users.FindIndex(u => u.Id == user.Id);
+                    if (index >= 0)
+                    {
+                        users[index] = updatedUser;
+                    }
+                }
+            }
+            else // Create mode
+            {
+                // Refresh the entire list to include the new user
+                await LoadUsers();
+            }
+
+            await CloseEditModal();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error handling user save");
+            errorMessage = "Ett fel uppstod vid sparande av användaren.";
+            StateHasChanged();
+        }
+    }
+
+    private Task HandleUserDelete(UserInfo user)
+    {
+        selectedUserForDelete = user;
+        showDeleteModal = true;
+        StateHasChanged();
+        Logger.LogInformation("Delete confirmation requested for: {UserName}", user.UserName);
+        return Task.CompletedTask;
+    }
+
+    private Task CloseDeleteModal()
+    {
+        showDeleteModal = false;
+        selectedUserForDelete = null;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private async Task ConfirmDeleteUser()
+    {
+        if (selectedUserForDelete == null) return;
+
+        var userToDelete = selectedUserForDelete; // Store reference before closing modal
+        var userId = userToDelete.Id;
+        var userName = userToDelete.UserName;
+
+        try
+        {
+            var success = await UserService.DeleteUserAsync(userId);
+            if (success)
+            {
+                // Remove user from local list
+                users.RemoveAll(u => u.Id == userId);
+                await CloseDeleteModal();
+                Logger.LogInformation("Successfully deleted user: {UserName}", userName);
+            }
+            else
+            {
+                errorMessage = $"Misslyckades att ta bort användare {userName}";
+                await CloseDeleteModal();
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error deleting user {UserId}", userId);
+            errorMessage = "Ett fel uppstod vid borttagning av användaren.";
+            await CloseDeleteModal();
+            StateHasChanged();
+        }
+    }
+
+    private Task HandleUserPasswordUpdate(UserInfo user)
+    {
+        selectedUser = user;
+        showPasswordModal = true;
+        StateHasChanged();
+        Logger.LogInformation("Password update requested for: {UserName}", user.UserName);
+        return Task.CompletedTask;
+    }
+
+    private Task ClosePasswordModal()
+    {
+        showPasswordModal = false;
+        selectedUser = null;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private Task HandlePasswordUpdated()
+    {
+        Logger.LogInformation("Password updated successfully for user: {UserName}", selectedUser?.UserName);
+        return Task.CompletedTask;
+    }
+}

@@ -1,0 +1,271 @@
+@page "/data"
+@using OrderLagerSystem.Client.Services
+@using OrderLagerSystem.Api.DTOs
+@inject OrderApiService OrderApi
+@inject ArticleService ArticleService
+@inject ILogger<Data> Logger
+@inject OrderLagerSystem.Client.Services.AuthService AuthService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@rendermode InteractiveServer
+
+<PageTitle>Data Export</PageTitle>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1>Data Export</h1>
+            <p class="text-muted">Export system data to CSV files for analysis and backup purposes</p>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(message))
+    {
+        <div class="alert @alertClass">@message</div>
+    }
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Order History Export</h5>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">
+                        Download complete order history data including all status changes, timestamps, and user information.
+                        This includes all orders and their historical status transitions.
+                    </p>
+                    <button class="btn btn-primary" 
+                            @onclick="DownloadOrderHistory" 
+                            disabled="@isDownloadingOrderHistory">
+                        @if (isDownloadingOrderHistory)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                            <span>Preparing...</span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-download me-2"></i>
+                            <span>Download Order History CSV</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Articles Export</h5>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">
+                        Download complete articles catalog including SKU, names, descriptions, prices, and current stock quantities.
+                        This includes all active and inactive articles in the system.
+                    </p>
+                    <button class="btn btn-success" 
+                            @onclick="DownloadArticles" 
+                            disabled="@isDownloadingArticles">
+                        @if (isDownloadingArticles)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                            <span>Preparing...</span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-download me-2"></i>
+                            <span>Download Articles CSV</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Export Information</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="mb-0">
+                        <li><strong>Order History:</strong> Contains order ID, external order number, status changes, timestamps, user information, and comments</li>
+                        <li><strong>Articles:</strong> Contains article ID, SKU, name, description, price, stock quantity, and active status</li>
+                        <li><strong>Format:</strong> CSV files are compatible with Excel, Google Sheets, and other data analysis tools</li>
+                        <li><strong>Encoding:</strong> Files are exported with UTF-8 encoding to support international characters</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private bool isDownloadingOrderHistory = false;
+    private bool isDownloadingArticles = false;
+    private string message = "";
+    private string alertClass = "alert-info";
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Access control: only Admin
+        if (!AuthService.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+        var roles = AuthService.CurrentUser?.Roles ?? new List<string>();
+        if (!roles.Contains("Admin"))
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+    }
+
+    private async Task DownloadOrderHistory()
+    {
+        isDownloadingOrderHistory = true;
+        message = "";
+        
+        try
+        {
+            var orderHistory = await OrderApi.GetOrderHistoryAsync();
+            if (orderHistory?.Any() == true)
+            {
+                var csv = GenerateOrderHistoryCsv(orderHistory);
+                var fileName = $"order_history_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+                await DownloadFile(csv, fileName, "text/csv");
+                message = $"Order history exported successfully. {orderHistory.Count} records downloaded.";
+                alertClass = "alert-success";
+            }
+            else
+            {
+                message = "No order history data found to export.";
+                alertClass = "alert-warning";
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to export order history");
+            message = "Failed to export order history. Please try again.";
+            alertClass = "alert-danger";
+        }
+        finally
+        {
+            isDownloadingOrderHistory = false;
+        }
+    }
+
+    private async Task DownloadArticles()
+    {
+        isDownloadingArticles = true;
+        message = "";
+        
+        try
+        {
+            var articles = await ArticleService.GetArticlesAsync(includeInactive: true);
+            if (articles?.Any() == true)
+            {
+                var csv = GenerateArticlesCsv(articles);
+                var fileName = $"articles_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+                await DownloadFile(csv, fileName, "text/csv");
+                message = $"Articles exported successfully. {articles.Count} records downloaded.";
+                alertClass = "alert-success";
+            }
+            else
+            {
+                message = "No articles data found to export.";
+                alertClass = "alert-warning";
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to export articles");
+            message = "Failed to export articles. Please try again.";
+            alertClass = "alert-danger";
+        }
+        finally
+        {
+            isDownloadingArticles = false;
+        }
+    }
+
+    private string GenerateOrderHistoryCsv(List<OrderHistoryDto> orderHistory)
+    {
+        var csv = new System.Text.StringBuilder();
+        
+        // Header
+        csv.AppendLine("Order ID,External Order No,Changed Date,Old Status,New Status,Changed By User,Comment");
+        
+        // Data rows
+        foreach (var item in orderHistory)
+        {
+            csv.AppendLine($"{EscapeCsvField(item.OrderId.ToString())}," +
+                          $"{EscapeCsvField(item.ExternalOrderNo ?? "")}," +
+                          $"{EscapeCsvField(item.ChangedUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"))}," +
+                          $"{EscapeCsvField(item.OldStatus ?? "")}," +
+                          $"{EscapeCsvField(item.NewStatus)}," +
+                          $"{EscapeCsvField(item.ChangedByUserId ?? "")}," +
+                          $"{EscapeCsvField(item.Comment ?? "")}");
+        }
+        
+        return csv.ToString();
+    }
+
+    private string GenerateArticlesCsv(List<ArticleDto> articles)
+    {
+        var csv = new System.Text.StringBuilder();
+        
+        // Header
+        csv.AppendLine("Article ID,SKU,Name,Description,Price,Stock Quantity,Is Active");
+        
+        // Data rows
+        foreach (var article in articles)
+        {
+            csv.AppendLine($"{EscapeCsvField(article.ArticleId.ToString())}," +
+                          $"{EscapeCsvField(article.Sku)}," +
+                          $"{EscapeCsvField(article.Name)}," +
+                          $"{EscapeCsvField(article.Description ?? "")}," +
+                          $"{EscapeCsvField(article.Price.ToString("F2"))}," +
+                          $"{EscapeCsvField(article.StockQuantity.ToString())}," +
+                          $"{EscapeCsvField(article.IsActive.ToString())}");
+        }
+        
+        return csv.ToString();
+    }
+
+    private string EscapeCsvField(string field)
+    {
+        if (string.IsNullOrEmpty(field))
+            return "";
+            
+        // If field contains comma, quote, or newline, wrap in quotes and escape quotes
+        if (field.Contains(',') || field.Contains('"') || field.Contains('\n') || field.Contains('\r'))
+        {
+            return "\"" + field.Replace("\"", "\"\"") + "\"";
+        }
+        
+        return field;
+    }
+
+    private async Task DownloadFile(string content, string fileName, string mimeType)
+    {
+        var bytes = System.Text.Encoding.UTF8.GetBytes(content);
+        var base64 = Convert.ToBase64String(bytes);
+        var dataUrl = $"data:{mimeType};base64,{base64}";
+        
+        await JSRuntime.InvokeVoidAsync("downloadFile", dataUrl, fileName);
+    }
+}
+
+<script>
+    window.downloadFile = (dataUrl, fileName) => {
+        const link = document.createElement('a');
+        link.href = dataUrl;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+</script>
