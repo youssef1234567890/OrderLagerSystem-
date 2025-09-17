@@ -21,6 +21,7 @@ builder.Services.AddScoped<UserService>();
 
 
 builder.Services.AddScoped<OrderApiService>();
+builder.Services.AddScoped<InventoryService>();
 
 // Konfigurera HttpClient för API-kommunikation
 builder.Services.AddHttpClient("OrderLagerSystemApi", client =>
