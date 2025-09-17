@@ -11,14 +11,17 @@
 <PageTitle>Order from Articles</PageTitle>
 
 <div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
             <h1>Order från artiklar</h1>
             <p class="text-muted">Välj artiklar, ange antal och skapa en order. Lager uppdateras direkt efter beställning.</p>
         </div>
-        <button class="btn btn-outline-secondary" @onclick="Reload" disabled="@isLoading">
+        <div class="d-flex gap-2">
+            <button class="btn btn-primary" @onclick="PlaceBatchOrder" disabled="@(!CanPlaceBatch || isLoading)">Skapa order av valda</button>
+            <button class="btn btn-outline-secondary" @onclick="Reload" disabled="@isLoading">
             @(isLoading ? "Laddar..." : "Uppdatera")
-        </button>
+            </button>
+        </div>
     </div>
 
     @if (!string.IsNullOrEmpty(message))
@@ -166,6 +169,8 @@
         return q > 0 && q <= a.StockQuantity;
     }
 
+    private bool CanPlaceBatch => articles?.Any(a => CanOrder(a)) == true;
+
     private async Task PlaceOrder(ArticleDto a)
     {
         try
@@ -205,6 +210,55 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "Create order failed for article {ArticleId}", a.ArticleId);
+            message = "Ett fel uppstod vid skapande av order.";
+            alertClass = "alert-danger";
+        }
+    }
+
+    private async Task PlaceBatchOrder()
+    {
+        try
+        {
+            if (articles == null) return;
+            var items = new List<OrderItemCreateRequest>();
+            foreach (var a in articles)
+            {
+                var q = GetQty(a.ArticleId);
+                if (q > 0 && q <= a.StockQuantity)
+                {
+                    items.Add(new OrderItemCreateRequest { ArticleId = a.ArticleId, Quantity = q });
+                }
+            }
+            if (items.Count == 0) return;
+
+            var req = new OrderCreateRequest
+            {
+                ExternalOrderNo = null,
+                Notes = "Batch order skapad från artikel-listan",
+                Items = items
+            };
+
+            var res = await OrderApi.CreateOrderAsync(req);
+            if (res != null && res.OrderId > 0)
+            {
+                foreach (var it in items)
+                {
+                    var a = articles.First(x => x.ArticleId == it.ArticleId);
+                    a.StockQuantity = Math.Max(0, a.StockQuantity - it.Quantity);
+                    qty[it.ArticleId] = 0;
+                }
+                message = $"Order {res.OrderId} skapad för {items.Count} valda artiklar.";
+                alertClass = "alert-success";
+            }
+            else
+            {
+                message = "Kunde inte skapa order.";
+                alertClass = "alert-danger";
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Batch create order failed");
             message = "Ett fel uppstod vid skapande av order.";
             alertClass = "alert-danger";
         }

@@ -109,4 +109,16 @@ public class OrderApiService
             ? JsonSerializer.Deserialize<List<OrderHistoryDto>>(json, JsonOptions) ?? new()
             : new();
     }
+
+    public async Task<bool> DeleteOrderAsync(int orderId)
+    {
+        AddAuthHeader();
+        var res = await _httpClient.DeleteAsync($"/api/order/{orderId}");
+        if (!res.IsSuccessStatusCode)
+        {
+            var txt = await res.Content.ReadAsStringAsync();
+            _logger.LogWarning("DeleteOrder failed: {Status} {Content}", (int)res.StatusCode, txt);
+        }
+        return res.IsSuccessStatusCode;
+    }
 }

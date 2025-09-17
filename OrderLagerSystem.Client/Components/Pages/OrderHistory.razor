@@ -46,6 +46,9 @@
                         <th>Till</th>
                         <th>Användare</th>
                         <th>Kommentar</th>
+                        <th class="text-end">Antal</th>
+                        <th class="text-end">Pris</th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -58,6 +61,14 @@
                             <td>@h.NewStatus</td>
                             <td>@(string.IsNullOrWhiteSpace(h.ChangedByUserId) ? "-" : h.ChangedByUserId)</td>
                             <td>@(string.IsNullOrWhiteSpace(h.Comment) ? "-" : h.Comment)</td>
+                            <td class="text-end">@h.TotalQuantity</td>
+                            <td class="text-end">@h.TotalPrice.ToString("0.00") kr</td>
+                            <td class="text-end">
+                                @if (h.NewStatus != "Cancelled")
+                                {
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDelete(h.OrderId)">Ta bort</button>
+                                }
+                            </td>
                         </tr>
                     }
                 </tbody>
@@ -76,6 +87,7 @@
     private string alertClass = "alert-info";
     private string orderIdFilterText = "";
     private List<OrderHistoryDto>? entries;
+    private bool isDeleting;
 
     protected override async Task OnInitializedAsync()
     {
@@ -130,4 +142,35 @@
         "Cancelled" => "table-danger",
         _ => ""
     };
+
+    private async Task ConfirmDelete(int orderId)
+    {
+        if (isDeleting) return;
+        var ok = await jsConfirm($"Är du säker att du vill ta bort order {orderId}? Detta återställer lager.");
+        if (!ok) return;
+        try
+        {
+            isDeleting = true;
+            var success = await OrderApi.DeleteOrderAsync(orderId);
+            if (success)
+            {
+                await Load();
+                message = "Order borttagen och lager återställt.";
+                alertClass = "alert-success";
+            }
+            else
+            {
+                message = "Kunde inte ta bort order.";
+                alertClass = "alert-danger";
+            }
+        }
+        finally
+        {
+            isDeleting = false;
+        }
+    }
+
+    [Inject] private IJSRuntime JS { get; set; } = default!;
+    private async Task<bool> jsConfirm(string text)
+        => await JS.InvokeAsync<bool>("confirm", text);
 }
