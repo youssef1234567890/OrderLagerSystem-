@@ -1,0 +1,327 @@
+@inject ILogger<UserEditForm> Logger
+@inject UserService UserService
+
+<div class="modal fade @(IsVisible ? "show" : "")" 
+     style="display: @(IsVisible ? "block" : "none")" 
+     tabindex="-1" 
+     role="dialog"
+     @onclick="HandleBackdropClick">
+    <div class="modal-dialog modal-lg" role="document" @onclick:stopPropagation="true">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    @if (IsEditMode)
+                    {
+                        <text>Redigera användare: @User?.FullName</text>
+                    }
+                    else
+                    {
+                        <text>Skapa ny användare</text>
+                    }
+                </h5>
+                <button type="button" class="btn-close" @onclick="CloseModal" aria-label="Stäng"></button>
+            </div>
+            
+            <div class="modal-body">
+                @if (isLoading)
+                {
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Laddar...</span>
+                        </div>
+                        <p>Laddar användardata...</p>
+                    </div>
+                }
+                else if (errorMessage != null)
+                {
+                    <div class="alert alert-danger">
+                        <h6>Error</h6>
+                        <p>@errorMessage</p>
+                    </div>
+                }
+                else
+                {
+                    <EditForm Model="editRequest" OnValidSubmit="HandleSubmit">
+                        <DataAnnotationsValidator />
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="firstName" class="form-label">Förnamn *</label>
+                                    <InputText id="firstName" 
+                                               class="form-control" 
+                                               @bind-Value="editRequest.FirstName" />
+                                    <ValidationMessage For="@(() => editRequest.FirstName)" class="text-danger" />
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="lastName" class="form-label">Efternamn *</label>
+                                    <InputText id="lastName" 
+                                               class="form-control" 
+                                               @bind-Value="editRequest.LastName" />
+                                    <ValidationMessage For="@(() => editRequest.LastName)" class="text-danger" />
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="email" class="form-label">E-post *</label>
+                            @if (!IsEditMode)
+                            {
+                                <div class="input-group">
+                                    <InputText id="email" 
+                                               type="text" 
+                                               class="form-control" 
+                                               placeholder="användarnamn"
+                                               @bind-Value="emailUsername" 
+                                               @oninput="OnEmailUsernameChanged" />
+                                    <span class="input-group-text flex-grow-2">@@datorlager.se</span>
+                                </div>
+                            }
+                            else
+                            {
+                                <InputText id="email" 
+                                           type="email" 
+                                           class="form-control" 
+                                           @bind-Value="editRequest.Email" />
+                            }
+                            <ValidationMessage For="@(() => editRequest.Email)" class="text-danger" />
+                        </div>
+
+                        @if (!IsEditMode)
+                        {
+                            <div class="mb-3">
+                                <label for="password" class="form-label">Lösenord *</label>
+                                <InputText id="password" 
+                                           type="password" 
+                                           class="form-control" 
+                                           placeholder="Minst 6 tecken"
+                                           @bind-Value="createRequest.Password" />
+                                <ValidationMessage For="@(() => createRequest.Password)" class="text-danger" />
+                                <div class="form-text">
+                                    <i class="bi bi-shield-lock"></i> Lösenordet måste vara minst 6 tecken långt
+                                </div>
+                            </div>
+                        }
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Roller</label>
+                            <div class="row">
+                                @foreach (var role in availableRoles)
+                                {
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="role_@role" 
+                                                   checked="@IsRoleSelected(role)"
+                                                   @onchange="@((ChangeEventArgs e) => ToggleRole(role, (bool)e.Value!))" />
+                                            <label class="form-check-label" for="role_@role">
+                                                @role
+                                            </label>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                        
+                        @if (IsEditMode && User != null)
+                        {
+                            <div class="mb-3">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h6 class="card-title">Användarinformation</h6>
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <small class="text-muted">Användarnamn:</small><br>
+                                                <strong>@User.UserName</strong>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <small class="text-muted">Status:</small><br>
+                                                <span class="badge @(User.IsActive ? "bg-success" : "bg-danger")">
+                                                    @(User.IsActive ? "Aktiv" : "Inaktiv")
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </EditForm>
+                }
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @onclick="CloseModal">
+                    Avbryt
+                </button>
+                @if (!isLoading && errorMessage == null)
+                {
+                    <button type="button" class="btn btn-primary" @onclick="HandleSubmit">
+                        @if (IsEditMode)
+                        {
+                            <text>Uppdatera användare</text>
+                        }
+                        else
+                        {
+                            <text>Skapa användare</text>
+                        }
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (IsVisible)
+{
+    <div class="modal-backdrop fade show"></div>
+}
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public UserInfo? User { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback<UserInfo> OnUserSaved { get; set; }
+
+    private UpdateUserRequest editRequest = new();
+    private CreateUserRequest createRequest = new();
+    private bool isLoading = false;
+    private string? errorMessage;
+    private List<string> selectedRoles = new();
+    private string emailUsername = string.Empty;
+    
+    private readonly List<string> availableRoles = new() { "Admin", "Orderkoordinator", "Employee" };
+
+    private bool IsEditMode => User != null;
+
+    protected override void OnParametersSet()
+    {
+        if (IsVisible && User != null)
+        {
+            LoadUserData();
+        }
+        else if (IsVisible && !IsEditMode)
+        {
+            ResetForm();
+        }
+    }
+
+    private void LoadUserData()
+    {
+        if (User == null) return;
+
+        editRequest = new UpdateUserRequest
+        {
+            FirstName = User.FirstName,
+            LastName = User.LastName,
+            Email = User.Email,
+            Roles = User.Roles?.ToList() ?? new List<string>()
+        };
+        
+        selectedRoles = User.Roles?.ToList() ?? new List<string>();
+        errorMessage = null;
+    }
+
+    private void ResetForm()
+    {
+        editRequest = new UpdateUserRequest();
+        createRequest = new CreateUserRequest();
+        selectedRoles = new List<string>();
+        emailUsername = string.Empty;
+        errorMessage = null;
+    }
+
+    private void OnEmailUsernameChanged(ChangeEventArgs e)
+    {
+        emailUsername = e.Value?.ToString() ?? string.Empty;
+        var fullEmail = $"{emailUsername}@datorlager.se";
+        editRequest.Email = fullEmail;
+        createRequest.Email = fullEmail;
+    }
+
+    private async Task HandleSubmit()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+            StateHasChanged();
+
+            if (IsEditMode && User != null)
+            {
+                // Update existing user
+                editRequest.Roles = selectedRoles;
+                var success = await UserService.UpdateUserAsync(User.Id, editRequest);
+                if (success)
+                {
+                    Logger.LogInformation("Successfully updated user: {UserId}", User.Id);
+                    await OnUserSaved.InvokeAsync(User);
+                }
+                else
+                {
+                    errorMessage = "Misslyckades att uppdatera användare. Kontrollera data och försök igen.";
+                }
+            }
+            else
+            {
+                // Create new user
+                createRequest.FirstName = editRequest.FirstName;
+                createRequest.LastName = editRequest.LastName;
+                createRequest.Email = editRequest.Email;
+                createRequest.Roles = selectedRoles;
+
+                var newUser = await UserService.CreateUserAsync(createRequest);
+                if (newUser != null)
+                {
+                    Logger.LogInformation("Successfully created user: {Email}", createRequest.Email);
+                    await OnUserSaved.InvokeAsync(newUser);
+                }
+                else
+                {
+                    errorMessage = "Misslyckades att skapa användare. Kontrollera data och försök igen.";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error saving user");
+            errorMessage = "Ett fel uppstod vid sparande av användaren. Försök igen.";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task CloseModal()
+    {
+        await OnClose.InvokeAsync();
+    }
+
+    private async Task HandleBackdropClick()
+    {
+        await CloseModal();
+    }
+
+    private bool IsRoleSelected(string role)
+    {
+        return selectedRoles.Contains(role);
+    }
+
+    private void ToggleRole(string role, bool isSelected)
+    {
+        if (isSelected && !selectedRoles.Contains(role))
+        {
+            selectedRoles.Add(role);
+        }
+        else if (!isSelected && selectedRoles.Contains(role))
+        {
+            selectedRoles.Remove(role);
+        }
+    }
+
+}

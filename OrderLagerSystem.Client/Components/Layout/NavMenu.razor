@@ -1,4 +1,8 @@
-﻿@inject OrderLagerSystem.Client.Services.AuthService AuthService
+@inject AuthService AuthService
+@implements IDisposable
+
+@inject OrderLagerSystem.Client.Services.AuthService AuthService
+
 
 <div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
@@ -50,6 +54,14 @@
                 My Profile
             </NavLink>
         </div>
+
+        @if (AuthService.IsAuthenticated && AuthService.CurrentUser?.Roles.Contains("Admin") == true)
+        {
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="user-management">
+                    User Management
+                </NavLink>
+
         @if (AuthService.IsAuthenticated && (AuthService.CurrentUser?.Roles.Contains("Admin") == true || AuthService.CurrentUser?.Roles.Contains("Orderkoordinator") == true))
         {
             <div class="nav-item px-3">
@@ -58,3 +70,15 @@
         }
     </nav>
 </div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        AuthService.OnAuthStateChanged += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        AuthService.OnAuthStateChanged -= StateHasChanged;
+    }
+}
