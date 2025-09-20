@@ -20,7 +20,9 @@ public class OrderItemResponse
     public int OrderItemId { get; set; }
     public int ArticleId { get; set; }
     public string ArticleName { get; set; } = string.Empty;
+    public string ArticleSku { get; set; } = string.Empty;
     public int Quantity { get; set; }
     public decimal UnitPrice { get; set; }
     public decimal TotalPrice { get; set; }
+
 }
