@@ -53,4 +53,6 @@ public interface IBarcodeService
     /// <param name="format">Målformat</param>
     /// <returns>Normaliserad text</returns>
     string NormalizeTextForBarcode(string text, ApiBarcodeFormat format);
+    Task<string?> DecodeBarcodeAsync(IFormFile image); 
+    Task<bool> MoveStockByBarcodeAsync(string barcode, int quantity, string userId); // NYTT
 }

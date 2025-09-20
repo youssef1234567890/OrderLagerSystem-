@@ -121,6 +121,33 @@ public class OrderController : ControllerBase
         });
     }
 
+    // GET: api/order/current-status
+    [HttpGet("current-status")]
+    public async Task<ActionResult<List<OrderHistoryDto>>> GetCurrentStatuses([FromQuery] int? orderId = null)
+    {
+        var q = _db.Orders.Include(o => o.Items).AsQueryable();
+        if (orderId.HasValue) q = q.Where(o => o.OrderId == orderId.Value);
+
+        var list = await q
+            .OrderByDescending(o => o.CreatedUtc)
+            .Select(o => new OrderHistoryDto
+            {
+                OrderHistoryId = 0, // Not a history record
+                OrderId = o.OrderId,
+                ExternalOrderNo = o.ExternalOrderNo,
+                ChangedByUserId = o.UserId,
+                OldStatus = null,
+                NewStatus = o.Status,
+                Comment = "Current status",
+                ChangedUtc = o.CreatedUtc,
+                TotalPrice = o.TotalPrice,
+                TotalQuantity = o.TotalQuantity
+            })
+            .ToListAsync();
+
+        return Ok(list);
+    }
+
     // GET: api/order/history
     [HttpGet("history")]
     public async Task<ActionResult<List<OrderHistoryDto>>> GetHistory([FromQuery] int? orderId = null)
@@ -130,7 +157,7 @@ public class OrderController : ControllerBase
 
         var list = await q
             .OrderByDescending(h => h.ChangedUtc)
-            .Join(_db.Orders,
+            .Join(_db.Orders.Include(o => o.Items),
                 h => h.OrderId,
                 o => o.OrderId,
                 (h, o) => new OrderHistoryDto
@@ -142,7 +169,9 @@ public class OrderController : ControllerBase
                     OldStatus = h.OldStatus,
                     NewStatus = h.NewStatus,
                     Comment = h.Comment,
-                    ChangedUtc = h.ChangedUtc
+                    ChangedUtc = h.ChangedUtc,
+                    TotalPrice = o.TotalPrice,
+                    TotalQuantity = o.TotalQuantity
                 })
             .ToListAsync();
 
@@ -156,7 +185,7 @@ public class OrderController : ControllerBase
         var list = await _db.OrderHistories
             .Where(h => h.OrderId == orderId)
             .OrderByDescending(h => h.ChangedUtc)
-            .Join(_db.Orders,
+            .Join(_db.Orders.Include(o => o.Items),
                 h => h.OrderId,
                 o => o.OrderId,
                 (h, o) => new OrderHistoryDto
@@ -168,11 +197,78 @@ public class OrderController : ControllerBase
                     OldStatus = h.OldStatus,
                     NewStatus = h.NewStatus,
                     Comment = h.Comment,
-                    ChangedUtc = h.ChangedUtc
+                    ChangedUtc = h.ChangedUtc,
+                    TotalPrice = o.TotalPrice,
+                    TotalQuantity = o.TotalQuantity
                 })
             .ToListAsync();
 
         return Ok(list);
+    }
+
+    // DELETE: api/order/{id}
+    [HttpDelete("{id:int}")]
+    [Authorize(Roles = $"{GlobalRules.Roles.Admin},{GlobalRules.Roles.Orderkoordinator}")]
+    public async Task<ActionResult> Delete(int id)
+    {
+        try
+        {
+            var userId = GetUserId();
+            var order = await _db.Orders
+                .Include(o => o.Items)
+                .FirstOrDefaultAsync(o => o.OrderId == id);
+            if (order == null) return NotFound();
+
+            // Restore stock for each item
+            var articles = await _db.Articles
+                .Where(a => order.Items.Select(i => i.ArticleId).Contains(a.ArticleId))
+                .ToDictionaryAsync(a => a.ArticleId, a => a);
+
+            foreach (var item in order.Items)
+            {
+                if (articles.TryGetValue(item.ArticleId, out var article))
+                {
+                    article.StockQuantity += item.Quantity;
+                    _db.StockMovements.Add(new StockMovement
+                    {
+                        ArticleId = item.ArticleId,
+                        UserId = userId,
+                        MovementType = StockMovement.MovementTypes.Released,
+                        Quantity = item.Quantity,
+                        StockAfterMovement = article.StockQuantity,
+                        OrderId = null, // No longer linked to order since we're deleting it
+                        Reason = "Order deleted - stock restored",
+                        Notes = $"DELETED_ORDER:{order.ExternalOrderNo ?? order.OrderId.ToString()}"
+                    });
+                }
+            }
+
+            // Remove all order history entries for this order
+            var orderHistories = await _db.OrderHistories
+                .Where(h => h.OrderId == id)
+                .ToListAsync();
+            _db.OrderHistories.RemoveRange(orderHistories);
+
+            // Remove all stock movements linked to this order
+            var orderStockMovements = await _db.StockMovements
+                .Where(sm => sm.OrderId == id)
+                .ToListAsync();
+            _db.StockMovements.RemoveRange(orderStockMovements);
+
+            // Remove all order items
+            _db.OrderItems.RemoveRange(order.Items);
+
+            // Finally remove the order itself
+            _db.Orders.Remove(order);
+
+            await _db.SaveChangesAsync();
+            return NoContent();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting order {OrderId}", id);
+            return StatusCode(500, "An error occurred while deleting the order.");
+        }
     }
 
     // POST: api/order/{orderId}/delivery
@@ -196,6 +292,7 @@ public class OrderController : ControllerBase
             return StatusCode(500, "An error occurred while creating the delivery.");
         }
     }
+
     // GET: api/order/pending-delivery
     [HttpGet("pending-delivery")]
     [Authorize(Roles = $"{GlobalRules.Roles.Admin},{GlobalRules.Roles.Orderkoordinator}")]
@@ -239,12 +336,25 @@ public class OrderController : ControllerBase
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
+
+    // POST: api/order/{orderId}/status
+    [HttpPost("{orderId:int}/status")]
+    [Authorize(Roles = $"{GlobalRules.Roles.Admin},{GlobalRules.Roles.Orderkoordinator}")]
+    public async Task<ActionResult<OrderResponse>> UpdateStatus(int orderId, [FromBody] OrderStatusUpdateRequest request)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+        var allowed = new[] { GlobalRules.OrderStatus.Created, GlobalRules.OrderStatus.Confirmed, GlobalRules.OrderStatus.Processing };
+        if (string.IsNullOrWhiteSpace(request.NewStatus) || !allowed.Contains(request.NewStatus))
+            return BadRequest(new { message = "Invalid status. Allowed: Created, Confirmed, Processing." });
+
+
         try
         {
             var userId = GetUserId();
             var order = await _db.Orders
                 .Include(o => o.Items).ThenInclude(i => i.Article)
                 .FirstOrDefaultAsync(o => o.OrderId == orderId);
+
 
             if (order == null) return NotFound(new { message = "Order not found." });
 
@@ -312,12 +422,60 @@ public class OrderController : ControllerBase
                 message = "Order delivered successfully", 
                 orderId = orderId,
                 deliveredAt = order.DeliveredUtc 
+
+            if (order == null) return NotFound();
+
+            var oldStatus = order.Status;
+            if (oldStatus == request.NewStatus)
+            {
+                // No change
+            }
+            else
+            {
+                order.Status = request.NewStatus;
+                _db.OrderHistories.Add(new OrderHistory
+                {
+                    OrderId = order.OrderId,
+                    ChangedByUserId = userId,
+                    OldStatus = oldStatus,
+                    NewStatus = order.Status,
+                    Comment = string.IsNullOrWhiteSpace(request.Comment) ? "Status updated" : request.Comment,
+                    ChangedUtc = DateTime.UtcNow
+                });
+            }
+
+            await _db.SaveChangesAsync();
+
+            return Ok(new OrderResponse
+            {
+                OrderId = order.OrderId,
+                UserId = order.UserId,
+                ExternalOrderNo = order.ExternalOrderNo,
+                Status = order.Status,
+                Notes = order.Notes,
+                TotalPrice = order.TotalPrice,
+                TotalQuantity = order.TotalQuantity,
+                CreatedUtc = order.CreatedUtc,
+                Items = order.Items.Select(i => new OrderItemResponse
+                {
+                    OrderItemId = i.OrderItemId,
+                    ArticleId = i.ArticleId,
+                    ArticleName = i.Article.Name,
+                    Quantity = i.Quantity,
+                    UnitPrice = i.UnitPrice,
+                    TotalPrice = i.TotalPrice
+                }).ToList()
+
             });
         }
         catch (Exception ex)
         {
+
             _logger.LogError(ex, "Error delivering order {OrderId}", orderId);
             return StatusCode(500, "An error occurred while delivering the order.");
+            _logger.LogError(ex, "Error updating order status for {OrderId}", orderId);
+            return StatusCode(500, "An error occurred while updating status.");
+
         }
     }
 }

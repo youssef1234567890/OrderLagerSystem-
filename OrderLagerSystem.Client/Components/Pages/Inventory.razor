@@ -1,0 +1,127 @@
+@page "/inventory"
+@inject OrderLagerSystem.Client.Services.InventoryService InventoryService
+@inject OrderLagerSystem.Client.Services.AuthService AuthService
+@rendermode InteractiveServer
+
+<h3>Lageröversikt</h3>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="alert alert-warning">
+        <p>Du måste vara inloggad för att se lageröversikten.</p>
+    </div>
+}
+else
+{
+    <!-- Sökfält -->
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <input type="text" class="form-control" placeholder="Sök artikel..." @bind="searchTerm" />
+        </div>
+        <div class="col-md-6">
+            <input type="text" class="form-control" placeholder="Filtrera på plats..." @bind="locationFilter" />
+        </div>
+    </div>
+    <button class="btn btn-primary btn-sm mb-3" @onclick="LoadData">Sök</button>
+
+    <!-- Lagerindikator -->
+    @if (articles is not null && articles.Any())
+    {
+        <p><b>Totalt antal artiklar:</b> @articles.Count</p>
+        <p><b>Totalt antal enheter i lager:</b> @articles.Sum(a => a.StockQuantity)</p>
+
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Artikel-ID</th>
+                    <th>SKU</th>
+                    <th>Namn</th>
+                    <th>Kvantitet</th>
+                    <th>Plats</th>
+                    <th>Status</th>
+                    <th>Flytta</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var article in articles)
+            {
+                <tr>
+                    <td>@article.ArticleId</td>
+                    <td>@article.Sku</td>
+                    <td>@article.Name</td>
+                    <td>@article.StockQuantity</td>
+                    <td>@article.StorageLocation</td>
+                    <td>
+                        @if (article.IsLowStock)
+                        {
+                            <span style="color:red;">Lågt</span>
+                        }
+                        else
+                        {
+                            <span style="color:green;">Ok</span>
+                        }
+                    </td>
+                    <td>
+                        @if (AuthService.CurrentUser?.Roles?.Contains("Admin") == true || 
+                             AuthService.CurrentUser?.Roles?.Contains("Lagerpersonal") == true)
+                        {
+                            <input type="text" class="form-control form-control-sm" @bind="article.NewLocation" placeholder="Ny plats..." />
+                            <button type="button" class="btn btn-sm btn-success mt-1" @onclick="() => MoveArticle(article)">
+                                Flytta
+                            </button>
+                        }
+                        else
+                        {
+                            <span class="text-muted">Ingen behörighet</span>
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <p><i>Inga artiklar hittades.</i></p>
+    }
+}
+
+@code {
+    private string? searchTerm;
+    private string? locationFilter;
+    private List<InventoryArticle> articles = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthService.IsAuthenticated)
+        {
+            await LoadData();
+        }
+    }
+
+    private async Task LoadData()
+    {
+        var search = string.IsNullOrWhiteSpace(searchTerm) ? null : searchTerm;
+        var location = string.IsNullOrWhiteSpace(locationFilter) ? null : locationFilter;
+
+        articles = await InventoryService.SearchArticlesAsync(search, location);
+    }
+
+    private async Task MoveArticle(InventoryArticle article)
+    {
+        if (string.IsNullOrWhiteSpace(article.NewLocation))
+            return;
+
+        var success = await InventoryService.MoveArticleAsync(article.ArticleId, article.NewLocation);
+
+        if (success)
+        {
+            await LoadData();
+            Console.WriteLine($"Artikel {article.ArticleId} flyttad till {article.NewLocation}");
+        }
+        else
+        {
+            Console.WriteLine($"Kunde inte flytta artikel {article.ArticleId}");
+        }
+    }
+}

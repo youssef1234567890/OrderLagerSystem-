@@ -42,10 +42,12 @@
                     <tr>
                         <th>Order number</th>
                         <th>Tid</th>
-                        <th>Från</th>
-                        <th>Till</th>
+                        <th>Status</th>
                         <th>Användare</th>
                         <th>Kommentar</th>
+                        <th class="text-end">Antal</th>
+                        <th class="text-end">Pris</th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -54,10 +56,23 @@
                         <tr class="@RowClass(h.NewStatus)">
                             <td>@(string.IsNullOrWhiteSpace(h.ExternalOrderNo) ? h.OrderId.ToString() : h.ExternalOrderNo)</td>
                             <td>@h.ChangedUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
-                            <td>@(string.IsNullOrWhiteSpace(h.OldStatus) ? "-" : h.OldStatus)</td>
-                            <td>@h.NewStatus</td>
+                            <td>
+                                <select class="form-select form-select-sm" value="@GetCurrentStatus(h)" @onchange="(e => OnStatusChange(h, e.Value?.ToString()))">
+                                    <option value="Created">Created</option>
+                                    <option value="Confirmed">Confirmed</option>
+                                    <option value="Processing">Processing</option>
+                                </select>
+                            </td>
                             <td>@(string.IsNullOrWhiteSpace(h.ChangedByUserId) ? "-" : h.ChangedByUserId)</td>
                             <td>@(string.IsNullOrWhiteSpace(h.Comment) ? "-" : h.Comment)</td>
+                            <td class="text-end">@h.TotalQuantity</td>
+                            <td class="text-end">@h.TotalPrice.ToString("0.00") kr</td>
+                            <td class="text-end">
+                                @if (h.NewStatus != "Cancelled")
+                                {
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDelete(h.OrderId)">Ta bort</button>
+                                }
+                            </td>
                         </tr>
                     }
                 </tbody>
@@ -76,6 +91,8 @@
     private string alertClass = "alert-info";
     private string orderIdFilterText = "";
     private List<OrderHistoryDto>? entries;
+    private bool isDeleting;
+    private HashSet<int> updatingOrders = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -104,7 +121,7 @@
             if (int.TryParse(orderIdFilterText, out var parsed) && parsed > 0)
                 orderId = parsed;
 
-            entries = await OrderApi.GetOrderHistoryAsync(orderId);
+            entries = await OrderApi.GetCurrentOrderStatusesAsync(orderId);
         }
         catch (Exception ex)
         {
@@ -130,4 +147,63 @@
         "Cancelled" => "table-danger",
         _ => ""
     };
+
+    private async Task ConfirmDelete(int orderId)
+    {
+        if (isDeleting) return;
+        var ok = await jsConfirm($"Är du säker att du vill ta bort order {orderId}? Detta återställer lager.");
+        if (!ok) return;
+        try
+        {
+            isDeleting = true;
+            var success = await OrderApi.DeleteOrderAsync(orderId);
+            if (success)
+            {
+                await Load();
+                message = "Order borttagen och lager återställt.";
+                alertClass = "alert-success";
+            }
+            else
+            {
+                message = "Kunde inte ta bort order.";
+                alertClass = "alert-danger";
+            }
+        }
+        finally
+        {
+            isDeleting = false;
+        }
+    }
+
+    [Inject] private IJSRuntime JS { get; set; } = default!;
+    private async Task<bool> jsConfirm(string text)
+        => await JS.InvokeAsync<bool>("confirm", text);
+
+    private string GetCurrentStatus(OrderHistoryDto h) => h.NewStatus;
+
+    private async Task OnStatusChange(OrderHistoryDto h, string? newStatus)
+    {
+        if (string.IsNullOrWhiteSpace(newStatus) || newStatus == h.NewStatus) return;
+        if (updatingOrders.Contains(h.OrderId)) return;
+        try
+        {
+            updatingOrders.Add(h.OrderId);
+            var res = await OrderApi.UpdateOrderStatusAsync(h.OrderId, new OrderStatusUpdateRequest { NewStatus = newStatus });
+            if (res != null)
+            {
+                await Load();
+                message = $"Status uppdaterad till {newStatus}.";
+                alertClass = "alert-success";
+            }
+            else
+            {
+                message = "Kunde inte uppdatera status.";
+                alertClass = "alert-danger";
+            }
+        }
+        finally
+        {
+            updatingOrders.Remove(h.OrderId);
+        }
+    }
 }

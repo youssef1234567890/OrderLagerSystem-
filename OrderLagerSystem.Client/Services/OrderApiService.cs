@@ -110,6 +110,7 @@ public class OrderApiService
             : new();
     }
 
+
     public async Task<List<OrderResponse>?> GetPendingDeliveryOrdersAsync()
     {
         AddAuthHeader();
@@ -127,4 +128,41 @@ public class OrderApiService
         var res = await _httpClient.PostAsJsonAsync($"/api/order/{orderId}/deliver", request, JsonOptions);
         return res.IsSuccessStatusCode;
     }
+
+    public async Task<List<OrderHistoryDto>> GetCurrentOrderStatusesAsync(int? orderId = null)
+    {
+        AddAuthHeader();
+        var url = orderId.HasValue ? $"/api/order/current-status?orderId={orderId.Value}" : "/api/order/current-status";
+        var res = await _httpClient.GetAsync(url);
+        var json = await res.Content.ReadAsStringAsync();
+        return res.IsSuccessStatusCode
+            ? JsonSerializer.Deserialize<List<OrderHistoryDto>>(json, JsonOptions) ?? new()
+            : new();
+    }
+
+    public async Task<bool> DeleteOrderAsync(int orderId)
+    {
+        AddAuthHeader();
+        var res = await _httpClient.DeleteAsync($"/api/order/{orderId}");
+        if (!res.IsSuccessStatusCode)
+        {
+            var txt = await res.Content.ReadAsStringAsync();
+            _logger.LogWarning("DeleteOrder failed: {Status} {Content}", (int)res.StatusCode, txt);
+        }
+        return res.IsSuccessStatusCode;
+    }
+
+    public async Task<OrderResponse?> UpdateOrderStatusAsync(int orderId, OrderStatusUpdateRequest request)
+    {
+        AddAuthHeader();
+        var res = await _httpClient.PostAsJsonAsync($"/api/order/{orderId}/status", request, JsonOptions);
+        var json = await res.Content.ReadAsStringAsync();
+        if (!res.IsSuccessStatusCode)
+        {
+            _logger.LogWarning("UpdateOrderStatus failed: {Status} {Content}", (int)res.StatusCode, json);
+            return null;
+        }
+        return JsonSerializer.Deserialize<OrderResponse>(json, JsonOptions);
+    }
+
 }

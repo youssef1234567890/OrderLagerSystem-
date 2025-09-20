@@ -10,4 +10,6 @@ public class OrderHistoryDto
     public string NewStatus { get; set; } = null!;
     public string? Comment { get; set; }
     public DateTime ChangedUtc { get; set; }
+    public decimal TotalPrice { get; set; }
+    public int TotalQuantity { get; set; }
 }

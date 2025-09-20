@@ -1,0 +1,191 @@
+@using OrderLagerSystem.Api.DTOs
+@inject ILogger<UserListComponent> Logger
+
+<div class="card">
+    <div class="card-header">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h5 class="mb-0">Användare (@Users.Count)</h5>
+            </div>
+            <div class="col-md-6">
+                <div class="input-group">
+                    <input type="text" 
+                           class="form-control" 
+                           placeholder="Sök användare..." 
+                           @bind="searchTerm" 
+                           @oninput="OnSearchChanged" />
+                    <button class="btn btn-outline-secondary" type="button" @onclick="ClearSearch">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card-body p-0">
+        @if (filteredUsers.Any())
+        {
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Namn</th>
+                            <th>E-post</th>
+                            <th>Roller</th>
+                            <th>Status</th>
+                            <th>Åtgärder</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var user in filteredUsers)
+                        {
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi @GetUserIcon(user) me-2 text-primary"></i>
+                                        <div>
+                                            <strong>@user.FullName</strong>
+                                            <br>
+                                            <small class="text-muted">@user.UserName</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>@user.Email</td>
+                                <td>
+                                    @if (user.Roles?.Any() == true)
+                                    {
+                                        @foreach (var role in user.Roles)
+                                        {
+                                            <span class="badge bg-primary me-1">@role</span>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Inga roller</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (user.IsActive)
+                                    {
+                                        <span class="badge bg-success">Aktiv</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-danger">Inaktiv</span>
+                                    }
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <button class="btn btn-sm btn-outline-primary" 
+                                                @onclick="() => OnUserEdit.InvokeAsync(user)"
+                                                title="Redigera användare">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button class="btn btn-sm @(user.IsActive ? "btn-outline-warning" : "btn-outline-success")" 
+                                                @onclick="() => OnUserStatusToggle.InvokeAsync(user)"
+                                                title="@(user.IsActive ? "Inaktivera" : "Aktivera") användare">
+                                            <i class="bi @(user.IsActive ? "bi-person-x" : "bi-person-check")"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-info" 
+                                                @onclick="() => OnUserPasswordUpdate.InvokeAsync(user)"
+                                                title="Uppdatera lösenord">
+                                            <i class="bi bi-key"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" 
+                                                @onclick="() => OnUserDelete.InvokeAsync(user)"
+                                                title="Ta bort användare">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-4">
+                <i class="bi bi-people display-1 text-muted"></i>
+                <h5 class="text-muted mt-3">Inga användare hittades</h5>
+                @if (!string.IsNullOrEmpty(searchTerm))
+                {
+                    <p class="text-muted">Försök justera dina sökkriterier.</p>
+                    <button class="btn btn-outline-primary" @onclick="ClearSearch">Rensa sökning</button>
+                }
+                else
+                {
+                    <p class="text-muted">Inga användare är för närvarande registrerade i systemet.</p>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public List<UserInfo> Users { get; set; } = new();
+    [Parameter] public EventCallback<UserInfo> OnUserEdit { get; set; }
+    [Parameter] public EventCallback<UserInfo> OnUserStatusToggle { get; set; }
+    [Parameter] public EventCallback<UserInfo> OnUserPasswordUpdate { get; set; }
+    [Parameter] public EventCallback<UserInfo> OnUserDelete { get; set; }
+    [Parameter] public EventCallback OnRefresh { get; set; }
+
+    private string searchTerm = string.Empty;
+    private List<UserInfo> filteredUsers = new();
+
+    protected override void OnParametersSet()
+    {
+        FilterUsers();
+    }
+
+    private void FilterUsers()
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm))
+        {
+            filteredUsers = Users.ToList();
+        }
+        else
+        {
+            var term = searchTerm.ToLowerInvariant();
+            filteredUsers = Users.Where(u => 
+                u.FullName?.ToLowerInvariant().Contains(term) == true ||
+                u.UserName?.ToLowerInvariant().Contains(term) == true ||
+                u.Email?.ToLowerInvariant().Contains(term) == true ||
+                u.Roles?.Any(r => r.ToLowerInvariant().Contains(term)) == true
+            ).ToList();
+        }
+    }
+
+    private void OnSearchChanged(ChangeEventArgs e)
+    {
+        searchTerm = e.Value?.ToString() ?? string.Empty;
+        FilterUsers();
+    }
+
+    private void ClearSearch()
+    {
+        searchTerm = string.Empty;
+        FilterUsers();
+    }
+
+    private string GetUserIcon(UserInfo user)
+    {
+        if (user.Roles?.Contains("Admin") == true)
+        {
+            return "bi-shield-check"; // Admin icon
+        }
+        else if (user.Roles?.Contains("Orderkoordinator") == true)
+        {
+            return "bi-person-badge"; // Coordinator icon
+        }
+        else if (user.Roles?.Contains("Employee") == true)
+        {
+            return "bi-person"; // Employee icon
+        }
+        else
+        {
+            return "bi-person-circle"; // Default user icon
+        }
+    }
+}
