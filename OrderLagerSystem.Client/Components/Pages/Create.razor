@@ -7,7 +7,12 @@
 
 <PageTitle>Skapa ny artikel</PageTitle>
 
-<h3>Skapa ny artikel</h3>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3>Skapa ny artikel</h3>
+    <a href="/" class="btn btn-outline-primary">
+        <i class="bi bi-house"></i> Hem
+    </a>
+</div>
 
 <EditForm Model="newArticle" OnValidSubmit="SaveArticle" FormName="CreateArticleForm">
     <DataAnnotationsValidator />

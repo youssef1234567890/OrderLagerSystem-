@@ -17,6 +17,9 @@
             <p class="text-muted">Välj artiklar, ange antal och skapa en order. Lager uppdateras direkt efter beställning.</p>
         </div>
         <div class="d-flex gap-2">
+            <a href="/" class="btn btn-outline-primary">
+                <i class="bi bi-house"></i> Hem
+            </a>
             <button class="btn btn-primary" @onclick="PlaceBatchOrder" disabled="@(!CanPlaceBatch || isLoading)">Skapa separata order</button>
             <button class="btn btn-outline-secondary" @onclick="Reload" disabled="@isLoading">
             @(isLoading ? "Laddar..." : "Uppdatera")
