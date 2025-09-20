@@ -300,7 +300,7 @@ public class OrderController : ControllerBase
     {
         var orders = await _db.Orders
             .Include(o => o.Items).ThenInclude(i => i.Article)
-            .Where(o => o.Status != GlobalRules.OrderStatus.Delivered && 
+            .Where(o => o.Status != GlobalRules.OrderStatus.Delivered &&
                        o.Status != GlobalRules.OrderStatus.Cancelled)
             .OrderBy(o => o.CreatedUtc)
             .Select(o => new OrderResponse
@@ -335,7 +335,83 @@ public class OrderController : ControllerBase
     public async Task<ActionResult> DeliverOrder(int orderId, [FromBody] OrderStatusUpdateRequest request)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
+        try
+        {
+            var order = await _db.Orders
+                .Include(o => o.Items)
+                .ThenInclude(oi => oi.Article)
+                .FirstOrDefaultAsync(o => o.OrderId == orderId);
 
+            if (order == null) return NotFound();
+
+            // Check if order can be delivered
+            if (order.Status == GlobalRules.OrderStatus.Delivered)
+            {
+                return BadRequest(new { message = "Order is already delivered." });
+            }
+
+            if (order.Status == GlobalRules.OrderStatus.Cancelled)
+            {
+                return BadRequest(new { message = "Cannot deliver a cancelled order." });
+            }
+
+            // Check if there's enough stock for all items
+            foreach (var item in order.Items)
+            {
+                if (item.Article.StockQuantity < item.Quantity)
+                {
+                    return BadRequest(new {
+                        message = $"Not enough stock for {item.Article.Name}. Available: {item.Article.StockQuantity}, Required: {item.Quantity}"
+                    });
+                }
+            }
+            // Update stock quantities
+            foreach (var item in order.Items)
+            {
+                item.Article.StockQuantity -= item.Quantity;
+
+                // Create stock movement record
+                var stockMovement = new StockMovement
+                {
+                    ArticleId = item.ArticleId,
+                    UserId = GetUserId(),
+                    MovementType = "Out",
+                    Quantity = -item.Quantity, // Negative for outbound
+                    StockAfterMovement = item.Article.StockQuantity,
+                    OrderId = orderId,
+                    Reason = "Order delivered",
+                    Notes = request.Comment ?? "Order delivered"
+                };
+                _db.StockMovements.Add(stockMovement);
+            }
+
+            order.Status = GlobalRules.OrderStatus.Delivered;
+            order.DeliveredUtc = DateTime.UtcNow;
+
+            var history = new OrderHistory
+            {
+                OrderId = orderId,
+                NewStatus = GlobalRules.OrderStatus.Delivered,
+                ChangedByUserId = GetUserId(),
+                ChangedUtc = DateTime.UtcNow,
+                Comment = request.Comment ?? "Order delivered"
+            };
+            _db.OrderHistories.Add(history);
+
+            await _db.SaveChangesAsync();
+
+            return Ok(new {
+                message = "Order delivered successfully",
+                orderId = orderId,
+                deliveredAt = order.DeliveredUtc
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error delivering order {OrderId}", orderId);
+            return StatusCode(500, "An error occurred while delivering the order.");
+        }
+    }
 
     // POST: api/order/{orderId}/status
     [HttpPost("{orderId:int}/status")]
@@ -373,8 +449,8 @@ public class OrderController : ControllerBase
             {
                 if (item.Article.StockQuantity < item.Quantity)
                 {
-                    return BadRequest(new { 
-                        message = $"Insufficient stock for {item.Article.Name}. Available: {item.Article.StockQuantity}, Required: {item.Quantity}" 
+                    return BadRequest(new {
+                        message = $"Insufficient stock for {item.Article.Name}. Available: {item.Article.StockQuantity}, Required: {item.Quantity}"
                     });
                 }
             }
@@ -418,54 +494,11 @@ public class OrderController : ControllerBase
 
             await _db.SaveChangesAsync();
 
-            return Ok(new { 
-                message = "Order delivered successfully", 
+            return Ok(new
+            {
+                message = "Order delivered successfully",
                 orderId = orderId,
-                deliveredAt = order.DeliveredUtc 
-
-            if (order == null) return NotFound();
-
-            var oldStatus = order.Status;
-            if (oldStatus == request.NewStatus)
-            {
-                // No change
-            }
-            else
-            {
-                order.Status = request.NewStatus;
-                _db.OrderHistories.Add(new OrderHistory
-                {
-                    OrderId = order.OrderId,
-                    ChangedByUserId = userId,
-                    OldStatus = oldStatus,
-                    NewStatus = order.Status,
-                    Comment = string.IsNullOrWhiteSpace(request.Comment) ? "Status updated" : request.Comment,
-                    ChangedUtc = DateTime.UtcNow
-                });
-            }
-
-            await _db.SaveChangesAsync();
-
-            return Ok(new OrderResponse
-            {
-                OrderId = order.OrderId,
-                UserId = order.UserId,
-                ExternalOrderNo = order.ExternalOrderNo,
-                Status = order.Status,
-                Notes = order.Notes,
-                TotalPrice = order.TotalPrice,
-                TotalQuantity = order.TotalQuantity,
-                CreatedUtc = order.CreatedUtc,
-                Items = order.Items.Select(i => new OrderItemResponse
-                {
-                    OrderItemId = i.OrderItemId,
-                    ArticleId = i.ArticleId,
-                    ArticleName = i.Article.Name,
-                    Quantity = i.Quantity,
-                    UnitPrice = i.UnitPrice,
-                    TotalPrice = i.TotalPrice
-                }).ToList()
-
+                deliveredAt = order.DeliveredUtc
             });
         }
         catch (Exception ex)
@@ -473,9 +506,9 @@ public class OrderController : ControllerBase
 
             _logger.LogError(ex, "Error delivering order {OrderId}", orderId);
             return StatusCode(500, "An error occurred while delivering the order.");
-            _logger.LogError(ex, "Error updating order status for {OrderId}", orderId);
-            return StatusCode(500, "An error occurred while updating status.");
 
         }
     }
 }
+
+

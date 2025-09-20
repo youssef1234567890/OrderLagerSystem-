@@ -225,7 +225,7 @@
 
     private bool CanDeliverOrder(OrderResponse order)
     {
-        return order.Status != "Delivered" && order.Status != "Cancelled";
+        return order.Status == "Created";
     }
 
     private string GetCannotDeliverReason(OrderResponse order)
@@ -233,7 +233,6 @@
         return order.Status switch
         {
             "Delivered" => "Redan levererad",
-            "Cancelled" => "Avbruten",
             _ => "Kan inte levereras"
         };
     }
@@ -243,11 +242,7 @@
         return status switch
         {
             "Created" => "bg-secondary",
-            "Confirmed" => "bg-primary",
-            "Processing" => "bg-warning",
-            "Shipped" => "bg-info",
             "Delivered" => "bg-success",
-            "Cancelled" => "bg-danger",
             _ => "bg-secondary"
         };
     }
@@ -257,11 +252,7 @@
         return status switch
         {
             "Created" => "Skapad",
-            "Confirmed" => "Bekräftad",
-            "Processing" => "Bearbetas",
-            "Shipped" => "Skickad",
             "Delivered" => "Levererad",
-            "Cancelled" => "Avbruten",
             _ => status
         };
     }
@@ -283,6 +274,7 @@
         if (selectedOrder == null) return;
 
         isDelivering = true;
+        message = "";
         try
         {
             var success = await OrderApi.DeliverOrderAsync(selectedOrder.OrderId, deliveryComment);
@@ -295,19 +287,18 @@
             }
             else
             {
-                message = "Kunde inte leverera ordern. Kontrollera att det finns tillräckligt med lager.";
                 alertClass = "alert-danger";
             }
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to deliver order {OrderId}", selectedOrder.OrderId);
-            message = "Ett fel uppstod vid leverans av ordern.";
             alertClass = "alert-danger";
         }
         finally
         {
             isDelivering = false;
+            StateHasChanged();
         }
     }
 }

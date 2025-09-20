@@ -124,11 +124,21 @@ public class OrderApiService
     public async Task<bool> DeliverOrderAsync(int orderId, string? comment = null)
     {
         AddAuthHeader();
-        var request = new OrderStatusUpdateRequest { Comment = comment };
+        var request = new OrderStatusUpdateRequest 
+        { 
+            NewStatus = "Delivered", // Set the status to Delivered
+            Comment = comment 
+        };
         var res = await _httpClient.PostAsJsonAsync($"/api/order/{orderId}/deliver", request, JsonOptions);
+
+        if (!res.IsSuccessStatusCode)
+        {
+            var content = await res.Content.ReadAsStringAsync();
+            _logger.LogWarning("DeliverOrder failed: {Status} {Content}", (int)res.StatusCode, content);
+        }
+
         return res.IsSuccessStatusCode;
     }
-
     public async Task<List<OrderHistoryDto>> GetCurrentOrderStatusesAsync(int? orderId = null)
     {
         AddAuthHeader();
