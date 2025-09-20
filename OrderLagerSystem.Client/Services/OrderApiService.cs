@@ -110,6 +110,25 @@ public class OrderApiService
             : new();
     }
 
+
+    public async Task<List<OrderResponse>?> GetPendingDeliveryOrdersAsync()
+    {
+        AddAuthHeader();
+        var res = await _httpClient.GetAsync("/api/order/pending-delivery");
+        var json = await res.Content.ReadAsStringAsync();
+        return res.IsSuccessStatusCode
+            ? JsonSerializer.Deserialize<List<OrderResponse>>(json, JsonOptions)
+            : new List<OrderResponse>();
+    }
+
+    public async Task<bool> DeliverOrderAsync(int orderId, string? comment = null)
+    {
+        AddAuthHeader();
+        var request = new OrderStatusUpdateRequest { Comment = comment };
+        var res = await _httpClient.PostAsJsonAsync($"/api/order/{orderId}/deliver", request, JsonOptions);
+        return res.IsSuccessStatusCode;
+    }
+
     public async Task<List<OrderHistoryDto>> GetCurrentOrderStatusesAsync(int? orderId = null)
     {
         AddAuthHeader();
@@ -145,4 +164,5 @@ public class OrderApiService
         }
         return JsonSerializer.Deserialize<OrderResponse>(json, JsonOptions);
     }
+
 }
