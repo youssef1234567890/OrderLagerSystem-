@@ -8,7 +8,7 @@
 @rendermode InteractiveServer
 
 <PageTitle>Utleverans</PageTitle>
-
+ 
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
@@ -16,6 +16,9 @@
             <p class="text-muted">Hantera order som väntar på leverans</p>
         </div>
         <div class="d-flex gap-2">
+            <a href="/" class="btn btn-outline-primary">
+                <i class="bi bi-house"></i> Hem
+            </a>
             <button class="btn btn-outline-secondary" @onclick="Reload" disabled="@isLoading">
                 @(isLoading ? "Laddar..." : "Uppdatera")
             </button>

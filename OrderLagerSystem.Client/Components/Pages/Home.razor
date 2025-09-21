@@ -1,7 +1,93 @@
 ﻿@page "/"
+@inject OrderLagerSystem.Client.Services.AuthService AuthService
 
 <PageTitle>Home</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="row g-4">
+    @if (!AuthService.IsAuthenticated)
+    {
+        <div class="col-6 col-md-4 col-lg-3">
+            <a href="/login" class="text-decoration-none d-block text-center">
+                <img src="/Login.png" class="img-fluid rounded shadow-sm tile-img" alt="Login" />
+                <div class="mt-2 fw-semibold tile-label">Login</div>
+            </a>
+        </div>
+    }
 
-Welcome to your new app.
+    @if (AuthService.IsAuthenticated)
+    {
+        <div class="col-6 col-md-4 col-lg-3">
+            <a href="/articles" class="text-decoration-none d-block text-center">
+                <img src="/Articler.png" class="img-fluid rounded shadow-sm tile-img" alt="Artiklar" />
+                <div class="mt-2 fw-semibold tile-label">Artiklar</div>
+            </a>
+        </div>
+    }
+
+    @if (AuthService.IsAuthenticated && (AuthService.CurrentUser?.Roles.Contains("Admin") == true || AuthService.CurrentUser?.Roles.Contains("Orderkoordinator") == true))
+    {
+        <div class="col-6 col-md-4 col-lg-3">
+            <a href="/purchase-orders" class="text-decoration-none d-block text-center">
+                <img src="/purchase-orders.png" class="img-fluid rounded shadow-sm tile-img" alt="Inköpsorder" />
+                <div class="mt-2 fw-semibold tile-label">Inköpsorder</div>
+            </a>
+        </div>
+        <div class="col-6 col-md-4 col-lg-3">
+            <a href="/goods-receipt" class="text-decoration-none d-block text-center">
+                <img src="/goods-receipt.png" class="img-fluid rounded shadow-sm tile-img" alt="Inleverans" />
+                <div class="mt-2 fw-semibold tile-label">Inleverans</div>
+            </a>
+        </div>
+        <div class="col-6 col-md-4 col-lg-3">
+            <a href="/inventory" class="text-decoration-none d-block text-center">
+                <img src="/inventory.png" class="img-fluid rounded shadow-sm tile-img" alt="Lageröversikt" />
+                <div class="mt-2 fw-semibold tile-label">Lageröversikt</div>
+            </a>
+        </div>
+
+        <div class="col-6 col-md-4 col-lg-3">
+            <a href="/order-history" class="text-decoration-none d-block text-center">
+                <img src="/order history.png" class="img-fluid rounded shadow-sm tile-img" alt="Orderhistorik" />
+                <div class="mt-2 fw-semibold tile-label">Orderhistorik</div>
+            </a>
+        </div>
+        <div class="col-6 col-md-4 col-lg-3">
+            <a href="/order-from-articles" class="text-decoration-none d-block text-center">
+                <img src="/skapaorder.png" class="img-fluid rounded shadow-sm tile-img" alt="Skapa Order" />
+                <div class="mt-2 fw-semibold tile-label">Skapa Order</div>
+            </a>
+        </div>
+        <div class="col-6 col-md-4 col-lg-3">
+            <a href="/delivery-orders" class="text-decoration-none d-block text-center">
+                <img src="/delivery.png" class="img-fluid rounded shadow-sm tile-img" alt="Utleverans" />
+                <div class="mt-2 fw-semibold tile-label">Utleverans</div>
+            </a>
+        </div>
+    }
+
+    @if (AuthService.IsAuthenticated)
+    {
+        <div class="col-6 col-md-4 col-lg-3">
+            <a href="/profile" class="text-decoration-none d-block text-center">
+                <img src="/profile.png" class="img-fluid rounded shadow-sm tile-img" alt="My Profile" />
+                <div class="mt-2 fw-semibold tile-label">My Profile</div>
+            </a>
+        </div>
+    }
+
+    @if (AuthService.IsAuthenticated && AuthService.CurrentUser?.Roles.Contains("Admin") == true)
+    {
+        <div class="col-6 col-md-4 col-lg-3">
+            <a href="/user-management" class="text-decoration-none d-block text-center">
+                <img src="/admindashbord.png" class="img-fluid rounded shadow-sm tile-img" alt="User Management" />
+                <div class="mt-2 fw-semibold tile-label">User Management</div>
+            </a>
+        </div>
+        <div class="col-6 col-md-4 col-lg-3">
+            <a href="/data" class="text-decoration-none d-block text-center">
+                <img src="/dataexport.png" class="img-fluid rounded shadow-sm tile-img" alt="Data Export" />
+                <div class="mt-2 fw-semibold tile-label">Data Export</div>
+            </a>
+        </div>
+    }
+</div>

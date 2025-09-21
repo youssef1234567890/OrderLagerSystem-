@@ -16,12 +16,17 @@
                     <h1>Inköpsorder</h1>
                     <p class="text-muted">Hantera alla inköpsorder</p>
                 </div>
-                @if (CanCreatePurchaseOrders)
-                {
-                    <button class="btn btn-primary" @onclick="ToggleCreateForm">
-                        @(showCreateForm ? "Visa lista" : "Skapa beställning")
-                    </button>
-                }
+                <div class="d-flex gap-2">
+                    <a href="/" class="btn btn-outline-primary">
+                        <i class="bi bi-house"></i> Hem
+                    </a>
+                    @if (CanCreatePurchaseOrders)
+                    {
+                        <button class="btn btn-primary" @onclick="ToggleCreateForm">
+                            @(showCreateForm ? "Visa lista" : "Skapa beställning")
+                        </button>
+                    }
+                </div>
             </div>
         </div>
     </div>

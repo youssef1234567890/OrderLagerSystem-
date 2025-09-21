@@ -9,7 +9,12 @@
 
 <PageTitle>Artiklar</PageTitle>
 
-<h3>Artikelhantering</h3>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3>Artikelhantering</h3>
+    <a href="/" class="btn btn-outline-primary">
+        <i class="bi bi-house"></i> Hem
+    </a>
+</div>
 
 @if (!AuthService.IsAuthenticated)
 {

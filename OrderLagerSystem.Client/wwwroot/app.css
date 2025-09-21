@@ -49,3 +49,19 @@ h1:focus {
 .darker-border-checkbox.form-check-input {
     border-color: #929292;
 }
+
+/* Home tiles sizing */
+.tile-img {
+    max-width: 75%;
+    height: auto;
+}
+
+@media (min-width: 992px) {
+    .tile-img {
+        max-width: 65%;
+    }
+}
+
+.tile-label {
+    font-size: 1.25rem;
+}
