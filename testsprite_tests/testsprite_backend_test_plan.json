@@ -1,0 +1,52 @@
+[
+  {
+    "id": "TC001",
+    "title": "jwt authentication login logout and registration",
+    "description": "Test the authentication API endpoints for user login, logout, and registration using JWT tokens. Verify token issuance, expiry, and role-based access control enforcement."
+  },
+  {
+    "id": "TC002",
+    "title": "admin user management crud and role assignment",
+    "description": "Verify the user management API endpoints accessible only by admin users. Test CRUD operations on users, role assignments, and password update policies including email validation and password security."
+  },
+  {
+    "id": "TC003",
+    "title": "article management crud and stock tracking",
+    "description": "Test the article management API for creating, reading, updating, and deleting articles. Verify stock tracking by location and role-based access control enforcement."
+  },
+  {
+    "id": "TC004",
+    "title": "order creation status management and history tracking",
+    "description": "Validate the order management API for creating orders with multiple articles, status updates, external order number integration, and order history retrieval."
+  },
+  {
+    "id": "TC005",
+    "title": "inventory tracking stock movements and location management",
+    "description": "Test inventory management API endpoints for real-time stock level tracking, stock movement logs, and location-based stock calculations."
+  },
+  {
+    "id": "TC006",
+    "title": "stock movement purchase orders goods receipt and adjustments",
+    "description": "Verify stock movement API endpoints for processing purchase orders, goods receipt registration, stock adjustments, and user attribution in logs."
+  },
+  {
+    "id": "TC007",
+    "title": "barcode generation validation and scanning",
+    "description": "Test barcode generation API endpoints for producing valid standardized barcodes linked to article SKUs, barcode scanning functionality, and format support."
+  },
+  {
+    "id": "TC008",
+    "title": "database context and data model integrity",
+    "description": "Validate the database context and data models for correct entity relationships, data seeding, and consistency with API operations."
+  },
+  {
+    "id": "TC009",
+    "title": "jwt cors and security policy enforcement",
+    "description": "Test the configuration and security setup including JWT settings, CORS policies, HTTPS enforcement, input validation, and event logging."
+  },
+  {
+    "id": "TC010",
+    "title": "api performance and concurrency under load",
+    "description": "Verify API response times under 2 seconds for standard operations and test support for 100 concurrent users to ensure scalability and reliability."
+  }
+]

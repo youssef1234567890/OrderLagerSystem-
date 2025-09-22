@@ -1,0 +1,524 @@
+[
+  {
+    "id": "TC001",
+    "title": "User login with valid credentials",
+    "description": "Validate that a user can successfully login using valid email and password credentials and receive a JWT token with 24-hour validity.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the login page"
+      },
+      {
+        "type": "action",
+        "description": "Enter a valid email and password"
+      },
+      {
+        "type": "action",
+        "description": "Click the login button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify login is successful and JWT token is received with 24-hour validity"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify user is redirected to the dashboard with role-based menu items"
+      }
+    ]
+  },
+  {
+    "id": "TC002",
+    "title": "User login with invalid credentials",
+    "description": "Verify that the system correctly handles login with invalid email or password by denying access and showing an error message.",
+    "category": "error handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the login page"
+      },
+      {
+        "type": "action",
+        "description": "Enter invalid email or password"
+      },
+      {
+        "type": "action",
+        "description": "Click the login button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify login is denied and an appropriate error message is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify no JWT token is issued"
+      }
+    ]
+  },
+  {
+    "id": "TC003",
+    "title": "Access control enforcement for Admin features",
+    "description": "Ensure that only users with the Admin role can access and perform user management operations such as create, edit, delete users and assign roles.",
+    "category": "security",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as a non-Admin user"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to access the User Management page or API endpoints"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify access is denied and unauthorized error is returned"
+      },
+      {
+        "type": "action",
+        "description": "Login as Admin user"
+      },
+      {
+        "type": "action",
+        "description": "Access User Management page and create, edit, delete users"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify operations succeed and data is stored correctly"
+      }
+    ]
+  },
+  {
+    "id": "TC004",
+    "title": "Create new user with valid email and strong password",
+    "description": "Verify that Admin can create a new user with valid email format and password meeting security rules.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as Admin"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to User Management page"
+      },
+      {
+        "type": "action",
+        "description": "Enter valid user email, assign role, and enter strong password"
+      },
+      {
+        "type": "action",
+        "description": "Submit the user creation form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify new user is created and visible in the user list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify password is stored securely (hashed)"
+      }
+    ]
+  },
+  {
+    "id": "TC005",
+    "title": "User management validation - invalid email or weak password",
+    "description": "Verify the system prevents creating or updating users with invalid email formats or passwords that do not meet complexity requirements.",
+    "category": "error handling",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as Admin"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to User Management page"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to create or update a user with invalid email format"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify appropriate validation error message is displayed and creation/updation is blocked"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to create or update a user with a weak password"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify password complexity error message is shown and operation is blocked"
+      }
+    ]
+  },
+  {
+    "id": "TC006",
+    "title": "Article creation with valid data including barcode generation",
+    "description": "Validate that an authorized user can create articles/products with all required fields including price in cents and barcode generation linked to article SKU.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login with Order Coordinator or Admin role"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to Article Management page"
+      },
+      {
+        "type": "action",
+        "description": "Fill in article creation form with valid SKU, name, description, pricing in cents"
+      },
+      {
+        "type": "action",
+        "description": "Submit the form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify article is created and visible in the listing"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify barcode is generated, matches the SKU, and can be scanned"
+      }
+    ]
+  },
+  {
+    "id": "TC007",
+    "title": "Article creation with missing or invalid data",
+    "description": "Ensure the system enforces validation for mandatory fields and proper data formatting during article creation.",
+    "category": "error handling",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login with Order Coordinator or Admin role"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to Article Management page"
+      },
+      {
+        "type": "action",
+        "description": "Submit article creation form with missing SKU or invalid price format"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify system displays validation errors and blocks creation"
+      }
+    ]
+  },
+  {
+    "id": "TC008",
+    "title": "Inventory stock update on goods receipt",
+    "description": "Verify that when Goods Receipt is registered by Warehouse Employee, the inventory stock levels are updated correctly and stock movement history is recorded.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as Warehouse Employee"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to Goods Receipt page"
+      },
+      {
+        "type": "action",
+        "description": "Create a new goods receipt with multiple articles and quantities"
+      },
+      {
+        "type": "action",
+        "description": "Submit the goods receipt"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify inventory stock levels are increased accordingly for each article"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify stock movement history reflects the goods receipt transaction"
+      }
+    ]
+  },
+  {
+    "id": "TC009",
+    "title": "Low stock alert triggering",
+    "description": "Validate that the system triggers low stock alerts correctly when article inventory falls below predefined thresholds after deliveries or stock movements.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Set low stock threshold for an article"
+      },
+      {
+        "type": "action",
+        "description": "Process deliveries or stock movements to reduce inventory below threshold"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the low stock warning alert appears in inventory page and notifications"
+      }
+    ]
+  },
+  {
+    "id": "TC010",
+    "title": "Order creation with sufficient stock validation",
+    "description": "Test that an Order Coordinator can create orders with multiple articles and the system validates stock availability and calculates total price and quantity correctly.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as Order Coordinator"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to Order Creation page"
+      },
+      {
+        "type": "action",
+        "description": "Add multiple articles with quantities that are within current stock levels"
+      },
+      {
+        "type": "action",
+        "description": "Assign external order number and submit order"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify order is created successfully with correct total price and quantity"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify order status is set properly and history is tracked"
+      }
+    ]
+  },
+  {
+    "id": "TC011",
+    "title": "Order creation with insufficient stock handling",
+    "description": "Verify the system prevents order creation when ordered quantities exceed available stock and displays appropriate error messages.",
+    "category": "error handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as Order Coordinator"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to Order Creation page"
+      },
+      {
+        "type": "action",
+        "description": "Add articles with quantities exceeding available inventory"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to submit the order"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify order creation is blocked and error message about insufficient stock is displayed"
+      }
+    ]
+  },
+  {
+    "id": "TC012",
+    "title": "Order status workflow and delivery processing",
+    "description": "Verify the full order lifecycle from creation, status updates through processing to delivery confirmation including stock deduction.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Create an order as Order Coordinator"
+      },
+      {
+        "type": "action",
+        "description": "Update the order status through all workflow stages (e.g., Confirmed, Processing, Ready for Delivery)"
+      },
+      {
+        "type": "action",
+        "description": "Process outbound delivery and confirm delivery completion"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify inventory stock is deducted correctly upon delivery"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify order history tracks all status changes accurately"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify user interface displays status changes and delivery confirmation clearly"
+      }
+    ]
+  },
+  {
+    "id": "TC013",
+    "title": "Barcode scanning integration for inventory actions",
+    "description": "Validate that barcode scanning works correctly for inventory stock adjustments and article lookups.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to Inventory management page"
+      },
+      {
+        "type": "action",
+        "description": "Scan the barcode of an article using integrated scanner"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify article details are displayed correctly based on the scanned barcode"
+      },
+      {
+        "type": "action",
+        "description": "Use barcode scanning to register stock movement or goods receipt"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify inventory updates correctly according to scanned input"
+      }
+    ]
+  },
+  {
+    "id": "TC014",
+    "title": "Data export functionality test",
+    "description": "Ensure users can export reports and data correctly in supported formats and the exported data matches the filtered on-screen data.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to Data Export page"
+      },
+      {
+        "type": "action",
+        "description": "Apply filters for report data"
+      },
+      {
+        "type": "action",
+        "description": "Trigger data export to CSV or Excel format"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify export file downloads successfully"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify exported file contains correct and complete data matching filters"
+      }
+    ]
+  },
+  {
+    "id": "TC015",
+    "title": "API endpoint performance and error handling under load",
+    "description": "Test that key API endpoints (authentication, user, order, inventory, and stock movement) respond within 2 seconds under load and handle errors correctly.",
+    "category": "performance",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Simulate concurrent API requests using load testing tools"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify response times for all API endpoints remain under 2 seconds"
+      },
+      {
+        "type": "action",
+        "description": "Send malformed or invalid requests to API endpoints"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify proper error responses and status codes are returned"
+      }
+    ]
+  },
+  {
+    "id": "TC016",
+    "title": "Responsive UI verification",
+    "description": "Verify that the system UI is responsive and accessible on various devices and screen sizes, providing intuitive user interactions and clear feedback.",
+    "category": "ui",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Access the system UI on desktop, tablet, and mobile devices"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify layout adapts correctly with Bootstrap 5 responsive design"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify all menus and navigation are accessible according to user roles"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify user feedback and error messages are clear and visible"
+      }
+    ]
+  },
+  {
+    "id": "TC017",
+    "title": "Security requirements verification",
+    "description": "Ensure HTTPS is enforced, input validation is performed on all forms and API inputs, and security-relevant events (login, failures, critical operations) are logged appropriately.",
+    "category": "security",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Access the application via HTTP and verify redirection or blocking in favor of HTTPS"
+      },
+      {
+        "type": "action",
+        "description": "Submit invalid or malicious inputs on forms and API endpoints"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify inputs are sanitized and rejected or handled securely"
+      },
+      {
+        "type": "action",
+        "description": "Perform critical operations such as login, user creation, and order submission"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify logs record these events with timestamps and user identification"
+      }
+    ]
+  },
+  {
+    "id": "TC018",
+    "title": "Data integrity test during concurrent stock movements",
+    "description": "Validate that inventory transactions are handled with database transactions to maintain data integrity under concurrent stock movement operations.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Simulate concurrent updates to stock levels via multiple stock movement requests"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify database prevents race conditions and maintains accurate stock levels"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify stock movement history remains consistent and complete"
+      }
+    ]
+  }
+]
